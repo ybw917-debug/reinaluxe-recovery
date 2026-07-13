@@ -13,12 +13,16 @@ system intended to:
 
 Sprint 1 Issue 001 establishes the repository structure, documentation, package
 boundary, configuration examples, and development tooling. It does not
-implement product capabilities.
+implement product capabilities. Sprint 1 Issue 002 adds executable domain and
+data contracts for the future Content Audit System without adding processing,
+persistence, or integrations.
 
 ## Repository structure
 
 - `src/reinaluxe_recovery/` contains the Python package and minimal CLI entry
   point.
+- `src/reinaluxe_recovery/domain/` contains immutable Pydantic domain contracts
+  and controlled vocabularies.
 - `tests/` contains automated tests, beginning with an import smoke test.
 - `docs/` contains architecture, roadmap, sprint, workflow, and coding guidance.
 - `data/` is reserved for future local runtime data; generated or sensitive
@@ -46,6 +50,30 @@ configuration, and infrastructure concerns separate. The CLI should translate
 user input and render output without owning product logic. Concrete modules,
 contracts, persistence decisions, and integration boundaries will be introduced
 only by approved implementation issues.
+
+## Issue 002 domain boundaries
+
+The Content Audit domain uses four explicit separations:
+
+- `CrawlSnapshot` preserves raw crawl observations; `Article` contains only
+  normalized audit content and references its source snapshot.
+- `EvidenceReference` represents factual provenance; `CommunityClaim` remains a
+  separately typed statement with an explicit verification status.
+- `ContentRiskAssessment` and `RecoveryRecommendation` are generated outputs;
+  `HumanReviewDecision` is the only owner/reviewer judgment record.
+- `PerformanceSnapshot` uses an enforced page or site scope so the two metric
+  levels cannot be mixed.
+
+The versioned `ContentAuditResult` output envelope rejects dangling provenance
+references. Domain models are immutable and transport-oriented; they are not
+SQLAlchemy models and do not prescribe storage.
+
+Detailed contracts are documented in [Domain Model](domain-model.md) and
+[Data Contracts](data-contracts.md).
+
+Issue 002 deliberately contains no AI-authorship probability, ranking-cause or
+penalty assertion, similarity algorithm, scoring formula, crawler, database
+model, publishing action, or business integration.
 
 ## Issue 001 scope boundary
 

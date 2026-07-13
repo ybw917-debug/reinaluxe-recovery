@@ -6,7 +6,8 @@ Status: 🟢 In Development
 
 Sprint 1 begins the Content Audit System. Issue 001 provides the repository
 foundation. Issue 002 defines the domain model and data contracts required for
-later approved implementation work.
+later approved implementation work. Issue 003 provides deterministic offline
+normalization of owner-provided content into those contracts.
 
 ## Issue 001 — Repository scaffolding
 
@@ -94,3 +95,37 @@ or publishing behavior.
 - SEO automation, article rewriting, or LLM prompts/calls
 - Reddit, WordPress, Pinterest, or dashboard integrations
 - Automatic publishing or owner decisions
+
+## Issue 003 — Deterministic offline content import
+
+### Objective
+
+Convert owner-provided local HTML and structured JSON fixtures into validated
+`CrawlSnapshot` and `Article` records without live crawling or inference.
+
+### Deliverables
+
+- Strict local HTML and JSON fixture input contracts
+- BeautifulSoup intermediate parser with deterministic extraction rules
+- Stable source hashes, UUIDv5 record identities, and field provenance
+- Recoverable warnings and controlled fatal import results
+- Thin `import-html` CLI command with JSON output
+- Representative offline fixtures and unit/CLI coverage
+- Import-contract and operating documentation
+
+### Acceptance criteria
+
+- Relative URLs resolve without network access.
+- Semantic content is preferred and overlapping containers are not duplicated.
+- Optional malformed metadata warns without discarding usable content.
+- Required domain facts are never invented.
+- Repeated imports produce stable hashes and identifiers.
+- Existing domain contracts remain unchanged.
+- pytest, Ruff, formatting, and mypy pass through uv-managed Python 3.12.
+
+### Out of scope
+
+- Live crawling or access to ReinaLuxe, WordPress, Reddit, or communities
+- Persistence, SQLAlchemy models, or migrations
+- Scoring, similarity, SEO conclusions, LLMs, rewriting, or publishing
+- Pinterest, dashboards, and business automation

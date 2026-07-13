@@ -16,6 +16,9 @@ boundary, configuration examples, and development tooling. It does not
 implement product capabilities. Sprint 1 Issue 002 adds executable domain and
 data contracts for the future Content Audit System without adding processing,
 persistence, or integrations.
+Sprint 1 Issue 003 adds a deterministic offline import boundary for
+owner-provided HTML and JSON fixtures. It creates validated raw and normalized
+domain records without accessing any website.
 
 ## Repository structure
 
@@ -23,6 +26,8 @@ persistence, or integrations.
   point.
 - `src/reinaluxe_recovery/domain/` contains immutable Pydantic domain contracts
   and controlled vocabularies.
+- `src/reinaluxe_recovery/importing/` contains local input contracts, the
+  BeautifulSoup parser, deterministic normalizer, and import diagnostics.
 - `tests/` contains automated tests, beginning with an import smoke test.
 - `docs/` contains architecture, roadmap, sprint, workflow, and coding guidance.
 - `data/` is reserved for future local runtime data; generated or sensitive
@@ -74,6 +79,26 @@ Detailed contracts are documented in [Domain Model](domain-model.md) and
 Issue 002 deliberately contains no AI-authorship probability, ranking-cause or
 penalty assertion, similarity algorithm, scoring formula, crawler, database
 model, publishing action, or business integration.
+
+## Issue 003 offline import boundary
+
+The import flow is deliberately one-way and offline:
+
+```text
+local HTML or JSON fixture -> ParsedDocument -> CrawlSnapshot + Article
+```
+
+The parser prefers semantic article/main content, strips tested site chrome,
+normalizes whitespace and relative URLs, and handles malformed optional blocks
+with warnings. The normalizer uses the existing domain contracts unchanged,
+derives stable UUIDv5 identities from the source hash, and records value
+provenance. Missing required structural facts produce a failed `ImportResult`
+rather than invented content.
+
+The CLI remains thin: it validates paths and owner-supplied provenance, calls
+the import boundary, and prints or writes JSON. No network client, persistence
+adapter, or business integration exists. See [Offline Import](offline-import.md)
+and [Import Contracts](import-contracts.md).
 
 ## Issue 001 scope boundary
 

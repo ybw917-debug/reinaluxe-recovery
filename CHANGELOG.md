@@ -19,6 +19,13 @@ Notable project changes are recorded in this file.
   decisions.
 - Added complete JSON contract examples and validation/round-trip tests.
 - Documented the domain model, provenance rules, and Issue 002 scope boundaries.
+- Added strict local HTML and JSON fixture import contracts.
+- Added deterministic BeautifulSoup parsing and normalization into validated
+  `CrawlSnapshot` and `Article` records with stable IDs and provenance.
+- Added recoverable extraction warnings, controlled fatal results, and the
+  offline `import-html` CLI command.
+- Added representative offline fixtures, import/CLI tests, and Issue 003
+  documentation.
 
 ## Sprint 1
 

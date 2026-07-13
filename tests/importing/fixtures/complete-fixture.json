@@ -1,0 +1,9 @@
+{
+  "source_url": "https://owner.example/articles/offline/",
+  "fetched_at": "2026-07-14T12:00:00+08:00",
+  "status_code": 200,
+  "headers": {
+    "Content-Type": "text/html; charset=utf-8"
+  },
+  "html_body": "<!doctype html><html lang=\"en\"><head><title>Structured Offline Fixture</title></head><body><article><p>Content supplied entirely by a local JSON fixture.</p></article></body></html>"
+}

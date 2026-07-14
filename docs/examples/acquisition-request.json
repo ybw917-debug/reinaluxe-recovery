@@ -1,0 +1,18 @@
+{
+  "contract_version": "1.0",
+  "acquisition_id": "owner-approved-example",
+  "created_at": "2026-07-14T12:00:00+08:00",
+  "source_type": "url_list",
+  "sitemap_urls": null,
+  "explicit_urls": ["https://www.reinaluxe.co/example/"],
+  "allowed_hosts": ["reinaluxe.co", "www.reinaluxe.co"],
+  "output_directory": "D:/ReinaLuxeAcquisitions/owner-approved-example",
+  "user_agent": "ReinaLuxeRecovery/0.1 (+read-only acquisition)",
+  "request_timeout_seconds": 20.0,
+  "delay_between_requests_seconds": 1.0,
+  "maximum_urls": 100,
+  "include_patterns": null,
+  "exclude_patterns": null,
+  "overwrite_existing": false,
+  "metadata": null
+}

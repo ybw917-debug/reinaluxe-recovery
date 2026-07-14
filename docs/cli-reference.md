@@ -136,3 +136,17 @@ uv run reinaluxe-recovery audit-articles [--database PATH] [--all-versions] `
 
 Audits current normalized versions by default, read-only and offline. The full
 exit policy is in [the audit policy](article-structure-audit.md).
+
+## `acquire-site`
+
+```powershell
+uv run reinaluxe-recovery acquire-site `
+  (--sitemap URL ... | --url-list PATH) --allowed-host HOST ... `
+  [--output-directory PATH] [--acquisition-id TEXT] [--user-agent TEXT] `
+  [--timeout FLOAT] [--delay FLOAT] [--maximum-urls INTEGER] `
+  [--include-pattern GLOB]... [--exclude-pattern GLOB]... `
+  [--overwrite-existing] [--json] [--result-output PATH]
+```
+
+The command only acquires public HTML and emits a batch manifest. See
+[site acquisition](site-acquisition.md) for exit codes and security policy.

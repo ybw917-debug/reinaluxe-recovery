@@ -80,6 +80,11 @@ Audit changes first run `uv run pytest tests/audit`. Their isolated smoke test
 imports two offline fixtures, exercises human and JSON audit output, and confirms
 database row counts do not change.
 
+Acquisition tests must use mocked transports and never public internet. Run
+`uv run pytest tests/acquisition` first. The smoke workflow must use a mock or
+isolated server, validate its manifest, dry-run the existing batch importer,
+confirm no database, and remove temporary output.
+
 ## 5. Review the result
 
 Inspect the final diff and status. Confirm that no secrets, local data, or

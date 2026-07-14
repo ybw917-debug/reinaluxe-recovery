@@ -102,3 +102,9 @@ replacing the inactive local database file with a verified backup copy.
 
 `uv run reinaluxe-recovery audit-articles --database data\reinaluxe-recovery.db`
 reads latest versions without fetching pages or storing findings.
+
+## Acquire approved public snapshots
+
+Use `acquire-site` only with owner-approved hosts and a sitemap or local URL
+list. Review the generated manifest, then run the separately displayed
+`import-batch ... --dry-run` command. Acquisition never opens the database.

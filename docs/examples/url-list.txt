@@ -1,0 +1,3 @@
+# One approved public URL per line.
+https://www.reinaluxe.co/example/
+https://www.reinaluxe.co/another-example/

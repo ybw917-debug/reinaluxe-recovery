@@ -6,6 +6,10 @@ Issue 006 implements a deterministic read-only structure audit over persisted
 normalized Article versions. Audit persistence, fetching, scoring, similarity,
 and generation remain outside scope.
 
+Issue 007 adds conservative public read-only acquisition and Issue 005 manifest
+generation. Acquisition remains separate from import, persistence, and audit;
+it adds no login, publishing, browser automation, bypass, or background work.
+
 ## Sprint intent
 
 Sprint 2 builds operational audit inputs on the completed Sprint 1 contracts and

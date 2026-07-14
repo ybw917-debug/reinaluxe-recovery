@@ -221,3 +221,10 @@ or migration change. See [Batch Import Contract](batch-import-contract.md) and
 The read-only flow is `CLI -> audit workflow -> detached DTOs -> deterministic
 rules -> report`. It uses normalized Article JSON and local page inventory only,
 with no migration, write path, network, scoring, similarity, embedding, or LLM.
+
+## Issue 007 acquisition boundary
+
+The new one-way boundary is `approved URL source -> safe synchronous GET -> raw
+snapshot + validated BatchManifest`. Import, persistence, and audit are never
+invoked by acquisition. Robots, allowed-host, public-address, redirect, size,
+content-type, delay, and path-confinement policies are enforced independently.

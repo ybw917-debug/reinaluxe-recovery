@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -12,6 +13,17 @@ from rich.table import Table
 from sqlalchemy import Engine
 
 from reinaluxe_recovery import __version__
+from reinaluxe_recovery.acquisition import (
+    AcquisitionError,
+    AcquisitionRequest,
+    AcquisitionSourceType,
+    AcquisitionWorkflow,
+    DiscoveryError,
+    NoEligibleUrlsError,
+    UnsafeTargetError,
+    render_acquisition,
+)
+from reinaluxe_recovery.acquisition.discovery import load_url_list
 from reinaluxe_recovery.application import (
     ArticleAuditWorkflow,
     OfflineImportWorkflow,
@@ -593,6 +605,145 @@ def audit_articles(
         if output is not None:
             console.print(f"Wrote audit result JSON to {output}")
     if fail_on_errors and result.severity_counts.get(AuditSeverity.ERROR, 0):
+        raise typer.Exit(code=EXIT_CONTENT_FAILURE)
+
+
+@app.command("acquire-site")
+def acquire_site(
+    sitemaps: Annotated[
+        list[str] | None,
+        typer.Option("--sitemap", help="Sitemap URL; repeat for multiple sitemaps."),
+    ] = None,
+    url_list: Annotated[
+        Path | None, typer.Option("--url-list", help="Local JSON or newline URL list.")
+    ] = None,
+    allowed_hosts: Annotated[
+        list[str] | None,
+        typer.Option("--allowed-host", help="Allowed public host; repeat as needed."),
+    ] = None,
+    output_directory: Annotated[
+        Path,
+        typer.Option(
+            "--output-directory", help="Root directory for acquisition output."
+        ),
+    ] = Path("acquisitions"),
+    acquisition_id: Annotated[
+        str,
+        typer.Option("--acquisition-id", help="Stable local acquisition identifier."),
+    ] = "site-acquisition",
+    user_agent: Annotated[
+        str,
+        typer.Option("--user-agent", help="Owner-controlled acquisition User-Agent."),
+    ] = "ReinaLuxeRecovery/0.1 (+read-only acquisition)",
+    timeout: Annotated[
+        float, typer.Option("--timeout", min=0.01, help="Request timeout in seconds.")
+    ] = 20.0,
+    delay: Annotated[
+        float,
+        typer.Option(
+            "--delay", min=0.0, help="Delay between page requests in seconds."
+        ),
+    ] = 1.0,
+    maximum_urls: Annotated[
+        int | None,
+        typer.Option("--maximum-urls", min=1, help="Maximum eligible page URLs."),
+    ] = None,
+    include_patterns: Annotated[
+        list[str] | None,
+        typer.Option("--include-pattern", help="Include URL glob; repeat as needed."),
+    ] = None,
+    exclude_patterns: Annotated[
+        list[str] | None,
+        typer.Option("--exclude-pattern", help="Exclude URL glob; repeat as needed."),
+    ] = None,
+    overwrite_existing: Annotated[
+        bool,
+        typer.Option(
+            "--overwrite-existing",
+            help="Allow replacement of acquisition report files.",
+        ),
+    ] = False,
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Print stable JSON output.")
+    ] = False,
+    result_output: Annotated[
+        Path | None,
+        typer.Option(
+            "--result-output",
+            help="Write an additional result JSON file without overwriting.",
+        ),
+    ] = None,
+) -> None:
+    """Acquire approved public HTML snapshots without modifying the website."""
+    if bool(sitemaps) == bool(url_list):
+        error_console.print(
+            "Acquisition input error: provide exactly one of --sitemap or --url-list",
+            style="red",
+        )
+        raise typer.Exit(code=EXIT_INPUT_ERROR)
+    if not allowed_hosts:
+        error_console.print(
+            "Acquisition input error: at least one --allowed-host is required",
+            style="red",
+        )
+        raise typer.Exit(code=EXIT_INPUT_ERROR)
+    if result_output is not None and result_output.exists():
+        error_console.print(
+            f"Acquisition output error: refusing to overwrite {result_output}",
+            style="red",
+        )
+        raise typer.Exit(code=EXIT_INPUT_ERROR)
+    explicit: list[str] | None = None
+    if url_list is not None:
+        try:
+            explicit = load_url_list(url_list)
+        except DiscoveryError as error:
+            error_console.print(f"Acquisition URL-list error: {error}", style="red")
+            raise typer.Exit(code=EXIT_INPUT_ERROR) from error
+    try:
+        request = AcquisitionRequest(
+            created_at=datetime.now(UTC),
+            acquisition_id=acquisition_id,
+            source_type=AcquisitionSourceType.SITEMAP
+            if sitemaps
+            else AcquisitionSourceType.URL_LIST,
+            sitemap_urls=tuple(sitemaps) if sitemaps else None,  # type: ignore[arg-type]
+            explicit_urls=tuple(explicit) if explicit else None,  # type: ignore[arg-type]
+            allowed_hosts=frozenset(allowed_hosts),
+            output_directory=output_directory / acquisition_id,
+            user_agent=user_agent,
+            request_timeout_seconds=timeout,
+            delay_between_requests_seconds=delay,
+            maximum_urls=maximum_urls,
+            include_patterns=tuple(include_patterns) if include_patterns else None,
+            exclude_patterns=tuple(exclude_patterns) if exclude_patterns else None,
+            overwrite_existing=overwrite_existing,
+        )
+        result = AcquisitionWorkflow().run(request)
+    except NoEligibleUrlsError as error:
+        error_console.print(f"Acquisition selection error: {error}", style="yellow")
+        raise typer.Exit(code=EXIT_QUERY_ERROR) from error
+    except (ValidationError, OSError) as error:
+        error_console.print(f"Acquisition input error: {error}", style="red")
+        raise typer.Exit(code=EXIT_INPUT_ERROR) from error
+    except DiscoveryError as error:
+        error_console.print(f"Acquisition discovery error: {error}", style="red")
+        raise typer.Exit(code=EXIT_DATABASE_ERROR) from error
+    except (UnsafeTargetError, AcquisitionError) as error:
+        error_console.print(f"Acquisition system error: {error}", style="red")
+        raise typer.Exit(code=EXIT_PERSISTENCE_ERROR) from error
+    rendered = result.model_dump_json(indent=2)
+    if result_output is not None:
+        try:
+            result_output.parent.mkdir(parents=True, exist_ok=True)
+            result_output.write_text(f"{rendered}\n", encoding="utf-8")
+        except OSError as error:
+            error_console.print(f"Acquisition output error: {error}", style="red")
+            raise typer.Exit(code=EXIT_INPUT_ERROR) from error
+    _print_json(rendered) if json_output else console.print(
+        render_acquisition(result), markup=False
+    )
+    if result.failed_count:
         raise typer.Exit(code=EXIT_CONTENT_FAILURE)
 
 

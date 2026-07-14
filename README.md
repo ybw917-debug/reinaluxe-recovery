@@ -111,6 +111,19 @@ This audits latest normalized Articles without HTML reparsing, database writes,
 or network access. See the [audit policy](docs/article-structure-audit.md) and
 [rule reference](docs/audit-rule-reference.md).
 
+## Read-only site acquisition
+
+```powershell
+uv run reinaluxe-recovery acquire-site --url-list .\urls.txt `
+  --allowed-host reinaluxe.co --allowed-host www.reinaluxe.co `
+  --output-directory D:\ReinaLuxeAcquisitions --acquisition-id approved-run
+```
+
+Acquisition performs public read-only GET requests and creates local snapshots
+plus a batch manifest. It does not publish, import, or audit automatically. See
+[site acquisition](docs/site-acquisition.md) and
+[acquisition security](docs/acquisition-security.md).
+
 ## Documentation
 
 - [Architecture](docs/architecture.md)

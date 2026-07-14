@@ -62,6 +62,9 @@ Notable project changes are recorded in this file.
 - Added deterministic read-only Article structure audit contracts, transparent
   rules, latest/history selection, local inventory checks, aggregate reporting,
   `audit-articles`, tests, and documentation without a migration.
+- Added synchronous read-only public HTML acquisition with explicit host and
+  robots safeguards, confined snapshots, validated batch-manifest generation,
+  mocked-network tests, and the `acquire-site` CLI.
 
 ## Sprint 1
 

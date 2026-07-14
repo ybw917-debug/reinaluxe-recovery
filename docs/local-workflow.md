@@ -97,3 +97,8 @@ database does not replace those source files.
 Do not edit the SQLite file manually. Automated backup and restore commands do
 not exist yet. Restoration currently means closing all active commands and
 replacing the inactive local database file with a verified backup copy.
+
+## Audit normalized Articles
+
+`uv run reinaluxe-recovery audit-articles --database data\reinaluxe-recovery.db`
+reads latest versions without fetching pages or storing findings.

@@ -202,6 +202,31 @@ class PersistenceRepository:
             raise PersistenceQueryError("failed to read article version") from error
         return _article_dto(model) if model is not None else None
 
+    def list_all_article_versions(self) -> list[StoredArticleVersionSummary]:
+        """Return every validated version in deterministic page/version order."""
+        models = self._scalars(
+            select(ArticleVersionModel)
+            .join(
+                PageIdentityModel, ArticleVersionModel.page_id == PageIdentityModel.id
+            )
+            .order_by(
+                PageIdentityModel.canonical_url, ArticleVersionModel.version_number
+            )
+        )
+        return [_article_dto(model) for model in models]
+
+    def list_latest_articles(self) -> list[StoredArticleVersionSummary]:
+        """Return each page's current validated Article in URL order."""
+        models = self._scalars(
+            select(ArticleVersionModel)
+            .join(
+                PageIdentityModel,
+                PageIdentityModel.current_article_version_id == ArticleVersionModel.id,
+            )
+            .order_by(PageIdentityModel.canonical_url)
+        )
+        return [_article_dto(model) for model in models]
+
     def list_import_warnings(
         self,
         crawl_id: UUID,

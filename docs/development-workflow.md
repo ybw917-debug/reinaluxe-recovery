@@ -76,6 +76,10 @@ one dry run that creates no database, and one persisted run that verifies exact
 rerun reuse plus changed-content versioning. Remove all temporary manifests,
 HTML copies, reports, and databases afterward.
 
+Audit changes first run `uv run pytest tests/audit`. Their isolated smoke test
+imports two offline fixtures, exercises human and JSON audit output, and confirms
+database row counts do not change.
+
 ## 5. Review the result
 
 Inspect the final diff and status. Confirm that no secrets, local data, or

@@ -13,9 +13,17 @@ from sqlalchemy import Engine
 
 from reinaluxe_recovery import __version__
 from reinaluxe_recovery.application import (
+    ArticleAuditWorkflow,
     OfflineImportWorkflow,
     PageNotFoundError,
     PageQueryService,
+)
+from reinaluxe_recovery.audit import (
+    AuditOptions,
+    AuditRuleCode,
+    AuditSeverity,
+    NoMatchingArticlesError,
+    render_site_audit,
 )
 from reinaluxe_recovery.batch import (
     BatchFailureKind,
@@ -488,6 +496,104 @@ def show_page(
                     f"- Warning for crawl {group.crawl.id}: "
                     f"{warning.code} — {warning.message}"
                 )
+
+
+@app.command("audit-articles")
+def audit_articles(
+    database: Annotated[
+        Path | None, typer.Option("--database", help="Local SQLite database path.")
+    ] = None,
+    all_versions: Annotated[
+        bool,
+        typer.Option(
+            "--all-versions",
+            help="Audit all stored versions instead of only current versions.",
+        ),
+    ] = False,
+    page_urls: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--page-url", help="Select a page URL; repeat for multiple pages."
+        ),
+    ] = None,
+    rules: Annotated[
+        list[str] | None,
+        typer.Option("--rule", help="Select a rule code; repeat for multiple rules."),
+    ] = None,
+    include_info: Annotated[
+        bool,
+        typer.Option(
+            "--include-info/--exclude-info",
+            help="Include or exclude informational findings.",
+        ),
+    ] = True,
+    limit: Annotated[
+        int | None,
+        typer.Option("--limit", min=1, help="Maximum Article versions to audit."),
+    ] = None,
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Print stable JSON output.")
+    ] = False,
+    output: Annotated[
+        Path | None,
+        typer.Option("--output", help="Write UTF-8 result JSON to a new file."),
+    ] = None,
+    fail_on_errors: Annotated[
+        bool,
+        typer.Option(
+            "--fail-on-errors", help="Exit 1 when error-severity findings exist."
+        ),
+    ] = False,
+) -> None:
+    """Audit persisted normalized Articles deterministically and offline."""
+    if output is not None and output.exists():
+        error_console.print(
+            f"Audit output error: refusing to overwrite existing file: {output}",
+            style="red",
+        )
+        raise typer.Exit(code=EXIT_INPUT_ERROR)
+    try:
+        selected_rules = (
+            frozenset(AuditRuleCode(value) for value in rules) if rules else None
+        )
+        options = AuditOptions(
+            include_info=include_info,
+            rule_codes=selected_rules,
+            latest_only=not all_versions,
+            page_urls=tuple(page_urls) if page_urls else None,
+            limit=limit,
+            fail_on_error_severity=fail_on_errors,
+        )
+    except (ValueError, ValidationError) as error:
+        error_console.print(f"Audit option error: {error}", style="red")
+        raise typer.Exit(code=EXIT_INPUT_ERROR) from error
+    _, engine = _open_current_database(database)
+    try:
+        result = ArticleAuditWorkflow(create_session_factory(engine)).run(options)
+    except NoMatchingArticlesError as error:
+        error_console.print(str(error), style="yellow")
+        raise typer.Exit(code=EXIT_QUERY_ERROR) from error
+    except (PersistenceError, ValidationError) as error:
+        error_console.print(f"Audit system error: {error}", style="red")
+        raise typer.Exit(code=EXIT_PERSISTENCE_ERROR) from error
+    finally:
+        engine.dispose()
+    rendered = result.model_dump_json(indent=2)
+    if output is not None:
+        try:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(f"{rendered}\n", encoding="utf-8")
+        except OSError as error:
+            error_console.print(f"Audit output error: {error}", style="red")
+            raise typer.Exit(code=EXIT_INPUT_ERROR) from error
+    if json_output:
+        _print_json(rendered)
+    else:
+        console.print(render_site_audit(result), markup=False)
+        if output is not None:
+            console.print(f"Wrote audit result JSON to {output}")
+    if fail_on_errors and result.severity_counts.get(AuditSeverity.ERROR, 0):
+        raise typer.Exit(code=EXIT_CONTENT_FAILURE)
 
 
 def _open_current_database(

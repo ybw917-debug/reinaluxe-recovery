@@ -125,3 +125,14 @@ is reported distinctly from a database failure.
 - `5`: page not found or page-query failure.
 
 Expected errors are written to stderr without raw stack traces.
+
+## `audit-articles`
+
+```powershell
+uv run reinaluxe-recovery audit-articles [--database PATH] [--all-versions] `
+  [--page-url URL]... [--rule CODE]... [--include-info|--exclude-info] `
+  [--limit INTEGER] [--json] [--output PATH] [--fail-on-errors]
+```
+
+Audits current normalized versions by default, read-only and offline. The full
+exit policy is in [the audit policy](article-structure-audit.md).

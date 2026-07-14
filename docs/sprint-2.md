@@ -2,6 +2,10 @@
 
 Status: In Development
 
+Issue 006 implements a deterministic read-only structure audit over persisted
+normalized Article versions. Audit persistence, fetching, scoring, similarity,
+and generation remain outside scope.
+
 ## Sprint intent
 
 Sprint 2 builds operational audit inputs on the completed Sprint 1 contracts and

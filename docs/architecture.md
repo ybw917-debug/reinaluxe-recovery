@@ -215,3 +215,9 @@ mechanism and relies on existing crawl and Article-version idempotency. There is
 no network client, parallel processing, retry loop, checkpoint store, scheduler,
 or migration change. See [Batch Import Contract](batch-import-contract.md) and
 [Batch Import Workflow](batch-import-workflow.md).
+
+## Issue 006 audit boundary
+
+The read-only flow is `CLI -> audit workflow -> detached DTOs -> deterministic
+rules -> report`. It uses normalized Article JSON and local page inventory only,
+with no migration, write path, network, scoring, similarity, embedding, or LLM.

@@ -59,6 +59,9 @@ Notable project changes are recorded in this file.
   existing parser, normalizer, database lifecycle, and per-entry transactions.
 - Added `import-batch` with human and JSON reports, continue/fail-fast handling,
   rerun-based resume, stable exit codes, synthetic fixtures, and focused tests.
+- Added deterministic read-only Article structure audit contracts, transparent
+  rules, latest/history selection, local inventory checks, aggregate reporting,
+  `audit-articles`, tests, and documentation without a migration.
 
 ## Sprint 1
 

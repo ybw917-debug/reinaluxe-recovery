@@ -101,6 +101,16 @@ uv run reinaluxe-recovery import-batch .\batch\manifest.json `
 See the [batch manifest contract](docs/batch-import-contract.md) and
 [batch workflow](docs/batch-import-workflow.md) before preparing a manifest.
 
+## Offline article audit
+
+```powershell
+uv run reinaluxe-recovery audit-articles --database data\reinaluxe-recovery.db
+```
+
+This audits latest normalized Articles without HTML reparsing, database writes,
+or network access. See the [audit policy](docs/article-structure-audit.md) and
+[rule reference](docs/audit-rule-reference.md).
+
 ## Documentation
 
 - [Architecture](docs/architecture.md)

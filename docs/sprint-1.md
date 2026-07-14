@@ -189,3 +189,29 @@ while keeping SQLAlchemy models private.
   commit caller transactions.
 - All behavior remains local and offline with no CLI persistence command or
   business integration.
+
+## Stage 004C — Local database and offline CLI workflow
+
+### Objective
+
+Make the completed offline importer and local persistence layer usable through
+safe database lifecycle commands and thin owner-facing CLI workflows.
+
+### Deliverables
+
+- Programmatic Alembic initialization, upgrade, revision, and health services
+- `db-init`, database-enabled `import-html`, `list-pages`, and `show-page`
+- Stable Pydantic lifecycle, inventory, workflow, and page-detail outputs
+- Automatic safe initialization/upgrade for explicitly database-backed commands
+- Human Rich output, stable JSON output, and deterministic exit codes
+- Lifecycle, orchestration, CLI integration, compatibility, and smoke tests
+- PowerShell quick start, CLI reference, and local workflow documentation
+
+### Acceptance criteria
+
+- Existing no-database `import-html` output and exit behavior remain compatible.
+- Import parsing occurs once and persistence delegates to the Stage 004B service.
+- Database lifecycle never deletes or replaces an existing database.
+- Page inventory and details expose DTOs rather than ORM objects.
+- Failed imports persist diagnostics by default and never create Article versions.
+- All commands remain local and offline with no external integration.

@@ -23,6 +23,8 @@ Sprint 1 Stage 004A adds the local SQLite schema and migration foundation while
 leaving persistence workflows and repository operations for a later stage.
 Sprint 1 Stage 004B adds offline transactional repositories and idempotent
 `ImportResult` persistence without exposing ORM models or adding integrations.
+Sprint 1 Stage 004C exposes those local capabilities through programmatic
+database lifecycle services, application DTOs, and a thin offline CLI.
 
 ## Repository structure
 
@@ -32,6 +34,8 @@ Sprint 1 Stage 004B adds offline transactional repositories and idempotent
   and controlled vocabularies.
 - `src/reinaluxe_recovery/importing/` contains local input contracts, the
   BeautifulSoup parser, deterministic normalizer, and import diagnostics.
+- `src/reinaluxe_recovery/application/` coordinates importer, persistence, and
+  detached page queries without duplicating their behavior.
 - `src/reinaluxe_recovery/persistence/` contains internal SQLAlchemy metadata,
   SQLite configuration, UTC types, Pydantic persistence DTOs, repositories, and
   the offline transactional import service.
@@ -49,7 +53,7 @@ Sprint 1 Stage 004B adds offline transactional repositories and idempotent
 - `uv` for dependency and environment management
 - Typer and Rich for the command-line interface
 - Pydantic and pydantic-settings for future validation and configuration
-- SQLAlchemy with SQLite as the intended future persistence baseline
+- SQLAlchemy, Alembic, and SQLite as the local persistence baseline
 - pytest, Ruff, and mypy for quality checks
 - GitHub and Claude Code-assisted development workflow
 
@@ -145,6 +149,25 @@ See [Persistence Contracts](persistence-contracts.md) and
 [Idempotency and Versioning](idempotency-and-versioning.md). Stage 004B adds no
 CLI persistence command, network client, analysis, scoring, publishing, or
 business integration.
+
+## Stage 004C local application workflow
+
+Database-backed CLI commands call an application or lifecycle boundary rather
+than SQLAlchemy models directly:
+
+```text
+CLI -> lifecycle / application service -> importer, repository, persistence
+```
+
+Lifecycle functions invoke Alembic programmatically and return revision and
+health DTOs. `OfflineImportWorkflow` calls the existing importer once and then
+the Stage 004B persistence service. `PageQueryService` opens read sessions and
+returns inventory/detail Pydantic contracts. No ORM object reaches the CLI.
+
+Missing and older databases are safely initialized or upgraded only when a
+database-backed command is explicitly invoked. Existing contents are never
+deleted or replaced. See [CLI Reference](cli-reference.md) and
+[Local Offline Workflow](local-workflow.md).
 
 ## Issue 001 scope boundary
 

@@ -31,3 +31,7 @@ class PersistenceWriteError(PersistenceError):
 
 class PersistenceConflictError(PersistenceWriteError):
     """Raised when a database constraint detects a concurrent conflict."""
+
+
+class DatabaseLifecycleError(PersistenceError):
+    """Raised when a local database cannot be initialized or migrated safely."""

@@ -84,3 +84,16 @@ All writes are flushed and committed by the service transaction boundary.
 Injected or real errors roll back the page, crawl, warnings, Article version,
 and pointer together. Database uniqueness conflicts are translated to an
 explicit `PersistenceConflictError`; other database failures are not swallowed.
+
+## Stage 004C lifecycle and application queries
+
+`initialize_database()` and `upgrade_database()` call Alembic programmatically;
+they never shell out. Lifecycle results report resolved path, redacted URL,
+previous/current/target revisions, whether migration work occurred, and health.
+Existing database files are upgraded in place and are never deleted or replaced.
+
+`StoredPageInventorySummary` is the smallest compatible Stage 004C extension.
+It adds current version number plus crawl and Article-version counts without
+changing the database schema or exposing ORM rows. `PageInventoryResult` and
+`PageDetails` are application-level Pydantic contracts used by the CLI. Detail
+history contains detached crawl, Article-version, and warning DTOs.

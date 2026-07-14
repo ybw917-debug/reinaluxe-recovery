@@ -30,6 +30,18 @@ uv run python --version
 Keep the generated `uv.lock` eligible for version control; do not edit it by
 hand.
 
+For an isolated local database workflow, use an explicit ignored or temporary
+path:
+
+```powershell
+uv run reinaluxe-recovery db-init --database data\reinaluxe-recovery.db
+uv run reinaluxe-recovery list-pages --database data\reinaluxe-recovery.db
+```
+
+Database-backed commands call Alembic programmatically and safely bring the
+selected SQLite file to the current revision. Never add database or JSON output
+files to Git.
+
 ## 3. Make a focused change
 
 - Keep each change within its approved issue.
@@ -48,6 +60,10 @@ uv run ruff check .
 uv run ruff format --check .
 uv run mypy
 ```
+
+CLI changes also require an isolated smoke workflow: initialize a temporary
+database, import an existing offline fixture, list pages, show the page, and
+remove the temporary directory afterward.
 
 ## 5. Review the result
 

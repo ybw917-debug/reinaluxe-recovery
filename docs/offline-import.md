@@ -59,14 +59,30 @@ uv run reinaluxe-recovery import-html article.html \
   --output import-result.json
 ```
 
-Omit `--output` to print validated `ImportResult` JSON. The command never
-accesses the source URL and never writes to a database.
+Omit `--output` to print validated `ImportResult` JSON. Without `--database`,
+this original JSON-only behavior remains unchanged and no database is opened.
+
+To persist the same offline result locally, add a database path:
+
+```powershell
+uv run reinaluxe-recovery import-html article.html `
+  --source-url https://owner.example/article/ `
+  --fetched-at 2026-07-14T12:00:00+08:00 `
+  --database data\reinaluxe-recovery.db
+```
+
+The database is safely initialized or upgraded, the importer runs exactly
+once, and the output contains both `import_result` and `persistence_result`.
+Failed imports retain diagnostics by default; `--no-persist-failed` opts out.
+No command accesses the source URL.
 
 Exit codes:
 
 - `0`: normalization succeeded;
 - `1`: content produced a controlled fatal import result;
-- `2`: input validation, file reading, or output writing failed.
+- `2`: input validation, file reading, or output writing failed;
+- `3`: database initialization or migration failed;
+- `4`: persistence failed.
 
 ## Fixture-based use
 
@@ -77,6 +93,7 @@ normalizer as standalone HTML.
 
 ## Explicit exclusions
 
-This boundary does not implement live crawling, persistence, SQLAlchemy
-models, similarity or scoring, SEO conclusions, LLM calls, content rewriting,
-publishing, WordPress, Reddit, Pinterest, dashboards, or business automation.
+This boundary supports optional local SQLite persistence. It does not implement
+live crawling, similarity or scoring, SEO conclusions, LLM calls, content
+rewriting, publishing, WordPress, Reddit, Pinterest, dashboards, or business
+automation.

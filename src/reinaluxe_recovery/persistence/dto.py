@@ -1,6 +1,7 @@
 """Pydantic records returned by the public persistence boundary."""
 
 from enum import StrEnum
+from pathlib import Path
 from typing import Any
 from uuid import UUID
 
@@ -104,3 +105,28 @@ class StoredImportWarningSummary(PersistenceDTO):
     field_path: str | None = None
     source_location: str | None = None
     created_at: AwareDatetime
+
+
+class DatabaseLifecycleResult(PersistenceDTO):
+    """Result of bringing one local SQLite database to the current schema."""
+
+    database_path: Path
+    database_url: str
+    previous_revision: str | None = None
+    current_revision: str
+    target_revision: str
+    migration_performed: bool
+    healthy: bool
+
+
+class StoredPageInventorySummary(PersistenceDTO):
+    """Page summary enriched with local history counts for inventory views."""
+
+    id: UUID
+    canonical_url: str
+    current_article_version_id: UUID | None = None
+    current_version_number: int | None = Field(default=None, ge=1)
+    first_seen_at: AwareDatetime
+    last_seen_at: AwareDatetime
+    crawl_count: int = Field(ge=0)
+    article_version_count: int = Field(ge=0)

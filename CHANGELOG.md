@@ -40,6 +40,14 @@ Notable project changes are recorded in this file.
   safe current-version updates, failed-crawl diagnostics, and rollback tests.
 - Documented repository contracts, idempotency behavior, timestamp ordering,
   transaction ownership, and SQLite concurrency limits.
+- Added programmatic local SQLite initialization, Alembic upgrade, revision,
+  current-schema, and health-check lifecycle operations.
+- Added thin application workflows plus `db-init`, database-enabled
+  `import-html`, `list-pages`, and `show-page` CLI behavior.
+- Added aggregate page-inventory and detailed history DTOs without changing the
+  database schema or exposing ORM objects.
+- Added lifecycle, CLI, compatibility, pagination, failure, and orchestration
+  tests plus owner-facing PowerShell workflow documentation.
 
 ## Sprint 1
 

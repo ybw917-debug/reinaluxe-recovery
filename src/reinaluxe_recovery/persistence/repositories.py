@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from typing import TypeVar
 from uuid import UUID
 
-from sqlalchemy import Select, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -15,6 +15,7 @@ from reinaluxe_recovery.persistence.dto import (
     StoredArticleVersionSummary,
     StoredCrawlSummary,
     StoredImportWarningSummary,
+    StoredPageInventorySummary,
     StoredPageSummary,
 )
 from reinaluxe_recovery.persistence.exceptions import PersistenceQueryError
@@ -114,6 +115,34 @@ class PersistenceRepository:
         )
         return [_page_dto(model) for model in models]
 
+    def list_page_inventory(
+        self,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[StoredPageInventorySummary]:
+        """Return deterministic page inventory with aggregate history counts."""
+        if limit is not None and limit < 1:
+            raise ValueError("limit must be at least 1")
+        if offset < 0:
+            raise ValueError("offset must be non-negative")
+        statement = select(PageIdentityModel).order_by(PageIdentityModel.canonical_url)
+        if offset:
+            statement = statement.offset(offset)
+        if limit is not None:
+            statement = statement.limit(limit)
+        return [self._inventory_dto(model) for model in self._scalars(statement)]
+
+    def get_page_inventory(self, url: str) -> StoredPageInventorySummary | None:
+        """Return one page with aggregate crawl and version counts."""
+        normalized_url = normalize_page_url(url)
+        model = self._scalar(
+            select(PageIdentityModel).where(
+                PageIdentityModel.canonical_url == normalized_url
+            )
+        )
+        return self._inventory_dto(model) if model is not None else None
+
     def get_crawl_record(self, crawl_id: UUID) -> StoredCrawlSummary | None:
         """Return one crawl observation by identifier."""
         try:
@@ -191,6 +220,47 @@ class PersistenceRepository:
             return bool(self._session.scalar(select(1)) == 1)
         except SQLAlchemyError as error:
             raise PersistenceQueryError("database health check failed") from error
+
+    def _inventory_dto(
+        self,
+        model: PageIdentityModel,
+    ) -> StoredPageInventorySummary:
+        try:
+            crawl_count = (
+                self._session.scalar(
+                    select(func.count(CrawlRecordModel.id)).where(
+                        CrawlRecordModel.page_id == model.id
+                    )
+                )
+                or 0
+            )
+            version_count = (
+                self._session.scalar(
+                    select(func.count(ArticleVersionModel.id)).where(
+                        ArticleVersionModel.page_id == model.id
+                    )
+                )
+                or 0
+            )
+            current_version = None
+            if model.current_article_version_id is not None:
+                current_version = self._session.scalar(
+                    select(ArticleVersionModel.version_number).where(
+                        ArticleVersionModel.id == model.current_article_version_id
+                    )
+                )
+        except SQLAlchemyError as error:
+            raise PersistenceQueryError("failed to read page inventory") from error
+        return StoredPageInventorySummary(
+            id=model.id,
+            canonical_url=model.canonical_url,
+            current_article_version_id=model.current_article_version_id,
+            current_version_number=current_version,
+            first_seen_at=model.first_seen_at,
+            last_seen_at=model.last_seen_at,
+            crawl_count=crawl_count,
+            article_version_count=version_count,
+        )
 
     def _scalar(self, statement: Select[tuple[_ModelT]]) -> _ModelT | None:
         try:

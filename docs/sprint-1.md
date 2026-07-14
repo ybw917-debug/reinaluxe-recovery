@@ -1,6 +1,6 @@
 # Sprint 1 — Content Audit System
 
-Status: 🟢 In Development
+Status: Complete
 
 ## Sprint intent
 
@@ -10,7 +10,9 @@ later approved implementation work. Issue 003 provides deterministic offline
 normalization of owner-provided content into those contracts. Stage 004A adds
 the local SQLite schema and migration foundation.
 Stage 004B adds transactional repository reads and idempotent offline import
-persistence.
+persistence. Stage 004C exposes safe database lifecycle and local inspection
+commands. Stage 004D closes the sprint with reproducible owner documentation and
+release verification.
 
 ## Issue 001 — Repository scaffolding
 
@@ -215,3 +217,36 @@ safe database lifecycle commands and thin owner-facing CLI workflows.
 - Page inventory and details expose DTOs rather than ORM objects.
 - Failed imports persist diagnostics by default and never create Article versions.
 - All commands remain local and offline with no external integration.
+
+## Stage 004D — Release verification and operational hardening
+
+### Objective
+
+Close Sprint 1 with a verified, documented, reproducible local workflow suitable
+for a non-programmer owner without expanding product behavior.
+
+### Deliverables
+
+- One authoritative Windows PowerShell owner quick start
+- Consistent CLI, database, migration, failure-policy, and offline-scope docs
+- Successful help checks for every owner-facing command
+- Manual local database backup and restoration guidance
+- Automated test, lint, format, and type-check verification
+- An isolated database initialization, import, query, and idempotency smoke test
+
+### Acceptance criteria
+
+- All documented commands and options match the implemented CLI.
+- The default database remains under ignored `data/` runtime storage.
+- JSON-only import behavior and failed-import persistence policy remain unchanged.
+- The full validation suite and isolated local smoke workflow pass.
+- No dependency, schema, network behavior, or product feature is added.
+
+## Deferred Sprint 2 scope
+
+- Batch offline import
+- Live site acquisition
+- Article similarity and structural audit
+- Recovery prioritization
+- Community intelligence
+- Content generation and publishing

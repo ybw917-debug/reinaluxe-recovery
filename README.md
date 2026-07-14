@@ -5,7 +5,7 @@ system for ReinaLuxe.
 
 > **Current sprint:** Sprint 1 — Content Audit System
 >
-> **Status:** 🟢 In Development
+> **Status:** Sprint 1 release verification complete
 
 ## Project goals
 
@@ -44,46 +44,44 @@ the corresponding product capability has been implemented.
 └── pyproject.toml              Project and tool configuration
 ```
 
-## Getting started
+## Windows PowerShell quick start
 
-The project uses uv-managed stable Python 3.12:
-
-```console
-uv sync --group dev
-uv run reinaluxe-recovery --help
-uv run pytest
-uv run ruff check .
-uv run ruff format --check .
-uv run mypy
-```
-
-Project commands should run through `uv`; do not use the older system Python.
-
-## Local database quick start
-
-From PowerShell in the repository root:
+This is the authoritative owner quick start. Open PowerShell and run:
 
 ```powershell
-# 1. Initialize or safely upgrade the local database.
+# 1. Open the repository and prepare uv-managed stable Python 3.12.
+Set-Location D:\reinaluxe.recovery\reinaluxe-recovery
+uv sync --python 3.12 --group dev
+
+# 2. Verify the project.
+uv run pytest
+
+# 3. Initialize or safely upgrade the local database.
 uv run reinaluxe-recovery db-init
 
-# 2. Import one already-saved HTML page; no URL is fetched.
-uv run reinaluxe-recovery import-html C:\saved-pages\article.html `
-  --source-url https://owner.example/article/ `
+# 4. Import one existing local HTML fixture; no URL is fetched.
+uv run reinaluxe-recovery import-html tests\importing\fixtures\complete-article.html `
+  --source-url https://owner.example/saved-page/ `
   --fetched-at 2026-07-14T12:00:00+08:00 `
   --database data\reinaluxe-recovery.db
 
-# 3. List locally stored pages.
+# 5. List locally stored pages.
 uv run reinaluxe-recovery list-pages
 
-# 4. Inspect one page and its history.
-uv run reinaluxe-recovery show-page https://owner.example/article/ `
+# 6. Inspect the imported canonical page and its history.
+uv run reinaluxe-recovery show-page https://owner.example/guides/craftsmanship/ `
   --include-history
+
+# 7. Locate the local database.
+Get-Item data\reinaluxe-recovery.db
 ```
 
-Database-backed commands safely initialize or upgrade the local SQLite file.
-They never crawl the supplied URL. See the [CLI reference](docs/cli-reference.md)
-and [local workflow](docs/local-workflow.md).
+The database is the single local file `data\reinaluxe-recovery.db`. The `data\`
+directory and database extensions are ignored by Git, so local content is not
+committed. Database-backed commands safely initialize or upgrade this file and
+never crawl the supplied URL. Use project commands through `uv`; do not use the
+older system Python. See the [CLI reference](docs/cli-reference.md) and
+[local workflow](docs/local-workflow.md) for optional flags and detailed use.
 
 ## Documentation
 

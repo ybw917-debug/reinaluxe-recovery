@@ -89,6 +89,6 @@ loss of timezone information.
 
 ## Local-data policy
 
-The eventual default database is `data/reinaluxe-recovery.db`. The repository
+The default database is `data/reinaluxe-recovery.db`. The repository
 already ignores `data/`, `*.db`, `*.sqlite`, and `*.sqlite3`. Tests use only
 temporary directories and do not create a repository-local database.

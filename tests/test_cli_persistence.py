@@ -16,6 +16,34 @@ FIXTURES = Path(__file__).parent / "importing" / "fixtures"
 runner = CliRunner()
 
 
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["--help"],
+        ["db-init", "--help"],
+        ["import-html", "--help"],
+        ["list-pages", "--help"],
+        ["show-page", "--help"],
+    ],
+)
+def test_owner_facing_help_exits_before_database_initialization(
+    args: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Every release help boundary succeeds without touching a database."""
+
+    def fail_if_called(database: Path | None) -> None:
+        del database
+        pytest.fail("help must not initialize a database")
+
+    monkeypatch.setattr("reinaluxe_recovery.cli.initialize_database", fail_if_called)
+
+    result = runner.invoke(app, args)
+
+    assert result.exit_code == 0, result.output
+    assert "Usage:" in result.stdout
+
+
 def _import_args(
     html_path: Path,
     database_path: Path | None,

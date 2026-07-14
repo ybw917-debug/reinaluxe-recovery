@@ -23,7 +23,7 @@ uv python find 3.12
 After dependency setup is explicitly approved, create or update the environment:
 
 ```console
-uv sync --python 3.12
+uv sync --python 3.12 --group dev
 uv run python --version
 ```
 
@@ -58,7 +58,7 @@ Once the environment is prepared and validation is authorized, run:
 uv run pytest
 uv run ruff check .
 uv run ruff format --check .
-uv run mypy
+uv run mypy src
 ```
 
 CLI changes also require an isolated smoke workflow: initialize a temporary

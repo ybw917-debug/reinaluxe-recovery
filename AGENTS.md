@@ -8,9 +8,10 @@ making focused, reviewable changes.
 
 ## Current stage
 
-Sprint 1 Issue 001 is repository scaffolding only. A dependency or planned
-boundary is not an implemented feature. Crawler, parser, database-model, SEO,
-LLM, Reddit, WordPress, Pinterest, and dashboard work requires a separate,
+Sprint 1 is complete. The implemented product boundary is deterministic offline
+HTML/JSON import, local SQLite persistence and migrations, idempotent Article
+versioning, and local CLI inspection. Live acquisition, analysis, scoring,
+generation, publishing, and external integrations require a separate,
 explicitly approved issue.
 
 ## Working rules
@@ -31,8 +32,8 @@ explicitly approved issue.
 - Keep the Typer/Rich CLI thin; product behavior belongs behind a separate
   application boundary when future issues define it.
 - Use Pydantic at validated input and settings boundaries.
-- Reserve SQLAlchemy for a future persistence layer; no database models or
-  migrations exist in this scaffold.
+- Keep SQLAlchemy models private to the existing persistence layer; public
+  application and CLI boundaries use validated Pydantic DTOs.
 - Prefer small, typed modules and standard-library solutions where practical.
 
 ## Quality gates
@@ -43,7 +44,7 @@ Only after dependency setup and validation are authorized, run:
 uv run pytest
 uv run ruff check .
 uv run ruff format --check .
-uv run mypy
+uv run mypy src
 ```
 
 Add or update tests for behavior changes, and update documentation and the

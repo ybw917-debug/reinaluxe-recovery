@@ -25,6 +25,8 @@ Sprint 1 Stage 004B adds offline transactional repositories and idempotent
 `ImportResult` persistence without exposing ORM models or adding integrations.
 Sprint 1 Stage 004C exposes those local capabilities through programmatic
 database lifecycle services, application DTOs, and a thin offline CLI.
+Sprint 1 Stage 004D verifies and documents the complete local workflow without
+expanding product behavior.
 
 ## Repository structure
 
@@ -181,3 +183,9 @@ This scaffold does not implement:
 - WordPress integration
 - Pinterest automation
 - A dashboard
+
+## Stage 004D release boundary
+
+Stage 004D closes Sprint 1 through documentation consistency, CLI help checks,
+the complete automated quality suite, and an isolated idempotent smoke workflow.
+It adds no new runtime capability, dependency, database schema, or integration.

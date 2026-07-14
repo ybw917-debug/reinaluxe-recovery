@@ -48,6 +48,11 @@ Notable project changes are recorded in this file.
   database schema or exposing ORM objects.
 - Added lifecycle, CLI, compatibility, pagination, failure, and orchestration
   tests plus owner-facing PowerShell workflow documentation.
+- Completed the Sprint 1 release audit with an authoritative owner quick start,
+  CLI help coverage, manual SQLite backup guidance, and an isolated idempotent
+  workflow check.
+- Reconfirmed JSON-only compatibility, failed-import policy, ignored local data,
+  offline-only operation, and the complete pytest, Ruff, and mypy quality gates.
 
 ## Sprint 1
 

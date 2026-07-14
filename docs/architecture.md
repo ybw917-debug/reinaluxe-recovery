@@ -21,6 +21,8 @@ owner-provided HTML and JSON fixtures. It creates validated raw and normalized
 domain records without accessing any website.
 Sprint 1 Stage 004A adds the local SQLite schema and migration foundation while
 leaving persistence workflows and repository operations for a later stage.
+Sprint 1 Stage 004B adds offline transactional repositories and idempotent
+`ImportResult` persistence without exposing ORM models or adding integrations.
 
 ## Repository structure
 
@@ -31,7 +33,8 @@ leaving persistence workflows and repository operations for a later stage.
 - `src/reinaluxe_recovery/importing/` contains local input contracts, the
   BeautifulSoup parser, deterministic normalizer, and import diagnostics.
 - `src/reinaluxe_recovery/persistence/` contains internal SQLAlchemy metadata,
-  SQLite configuration, UTC types, and transaction utilities.
+  SQLite configuration, UTC types, Pydantic persistence DTOs, repositories, and
+  the offline transactional import service.
 - `migrations/` contains reviewed Alembic schema revisions.
 - `tests/` contains automated tests, beginning with an import smoke test.
 - `docs/` contains architecture, roadmap, sprint, workflow, and coding guidance.
@@ -121,6 +124,27 @@ manager. Alembic owns schema creation and downgrade behavior. See
 
 Stage 004A deliberately omits repositories, save/idempotency workflows,
 article-version decisions, and CLI database commands.
+
+## Stage 004B persistence workflow
+
+The Stage 004B flow remains local and synchronous:
+
+```text
+validated ImportResult -> URL/content identity -> one SQLite transaction
+                       -> detached Pydantic persistence result
+```
+
+Repositories query through a caller-owned session and return DTOs. The service
+stores crawl history on every new observation, creates Article versions only
+when normalized editorial content changes, and moves the current pointer only
+after a new version is flushed. Exact repeats and unchanged content are
+idempotent. Contract-valid failed imports retain diagnostics but cannot create
+or select an Article version.
+
+See [Persistence Contracts](persistence-contracts.md) and
+[Idempotency and Versioning](idempotency-and-versioning.md). Stage 004B adds no
+CLI persistence command, network client, analysis, scoring, publishing, or
+business integration.
 
 ## Issue 001 scope boundary
 

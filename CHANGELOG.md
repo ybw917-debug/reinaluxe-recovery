@@ -32,6 +32,14 @@ Notable project changes are recorded in this file.
   UTC-aware timestamp storage, explicit transaction scope, and Alembic.
 - Added a reviewed initial upgrade/downgrade migration plus schema-level tests
   and persistence documentation.
+- Added strict Pydantic persistence DTOs and detached read repositories for
+  page, crawl, Article-version, and warning history.
+- Added deterministic canonical URL normalization and SHA-256 hashing of
+  editorially meaningful normalized Article content.
+- Added atomic idempotent `ImportResult` persistence with sequential versions,
+  safe current-version updates, failed-crawl diagnostics, and rollback tests.
+- Documented repository contracts, idempotency behavior, timestamp ordering,
+  transaction ownership, and SQLite concurrency limits.
 
 ## Sprint 1
 

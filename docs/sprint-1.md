@@ -9,6 +9,8 @@ foundation. Issue 002 defines the domain model and data contracts required for
 later approved implementation work. Issue 003 provides deterministic offline
 normalization of owner-provided content into those contracts. Stage 004A adds
 the local SQLite schema and migration foundation.
+Stage 004B adds transactional repository reads and idempotent offline import
+persistence.
 
 ## Issue 001 — Repository scaffolding
 
@@ -157,3 +159,33 @@ workflows or repository queries.
 - Tests create databases only in temporary directories.
 - No repository/service behavior, CLI database command, or external integration
   is introduced.
+
+## Stage 004B — Transactional import persistence
+
+### Objective
+
+Persist validated offline `ImportResult` records atomically and idempotently
+while keeping SQLAlchemy models private.
+
+### Deliverables
+
+- Strict Pydantic persistence results and stored-record summaries
+- Conservative canonical URL normalization and stable normalized-content hashes
+- Caller-session read repositories with no independent commits
+- Atomic import service for pages, crawls, warnings, and Article versions
+- Failed-crawl diagnostics without failed Article versions
+- Idempotency, versioning, history, rollback, DTO, and health-check tests
+- Persistence-contract and versioning documentation
+
+### Acceptance criteria
+
+- Exact repeats do not duplicate crawls, warnings, or versions.
+- New unchanged-content crawls reuse the existing Article version.
+- Changed content creates sequential versions and transactionally advances the
+  current pointer.
+- Historical imports preserve minimum first-seen and maximum last-seen times.
+- Any failure rolls back the complete import unit.
+- Repository methods expose Pydantic DTOs, never ORM instances, and never
+  commit caller transactions.
+- All behavior remains local and offline with no CLI persistence command or
+  business integration.

@@ -31,8 +31,9 @@ synchronous and uses non-deprecated SQLAlchemy 2.x APIs.
 
 `create_session_factory()` creates explicit sessions.
 `transactional_session()` commits a successful unit of work and rolls back the
-active transaction when an exception escapes. Business persistence behavior
-will be layered above this boundary in Stage 004B.
+active transaction when an exception escapes. Stage 004B now layers Pydantic
+DTOs, read repositories, deterministic URL and content-hash boundaries, and an
+atomic import service over these unchanged infrastructure utilities.
 
 ## Migrations
 
@@ -57,3 +58,15 @@ execution is exercised only against temporary SQLite files in tests.
   semantics.
 - No network or cloud database capability exists.
 - No local database file belongs in Git.
+
+## Stage 004B application boundary
+
+Repositories use caller-owned sessions and never commit. The import persistence
+service opens one `transactional_session()` per `ImportResult`, so page, crawl,
+warning, Article-version, and current-pointer changes commit or roll back
+together. Public reads return Pydantic summaries rather than ORM instances.
+
+Contract-valid failed imports are retained as crawl diagnostics because the
+Stage 004A schema explicitly supports failed status and nullable Article
+pointers. See [Persistence Contracts](persistence-contracts.md) and
+[Idempotency and Versioning](idempotency-and-versioning.md).

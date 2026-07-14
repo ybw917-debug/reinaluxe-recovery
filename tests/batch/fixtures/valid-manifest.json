@@ -1,0 +1,25 @@
+{
+  "contract_version": "1.0",
+  "batch_id": "test-batch-valid",
+  "created_at": "2026-07-14T10:00:00+08:00",
+  "default_fetched_at": "2026-07-14T09:30:00+08:00",
+  "default_headers": {
+    "content-type": "text/html; charset=utf-8"
+  },
+  "entries": [
+    {
+      "entry_id": "article-a",
+      "html_path": "html/article-a.html",
+      "source_url": "https://owner.example/batch/article-a/"
+    },
+    {
+      "entry_id": "disabled-example",
+      "html_path": "html/fatal.html",
+      "source_url": "https://owner.example/batch/disabled/",
+      "enabled": false
+    }
+  ],
+  "metadata": {
+    "purpose": "synthetic test fixture"
+  }
+}

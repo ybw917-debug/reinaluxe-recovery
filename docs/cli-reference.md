@@ -53,6 +53,46 @@ Failed imports are persisted as crawl diagnostics by default, matching Stage
 004B. `--no-persist-failed` returns a null `persistence_result` for controlled
 failed content. Failed imports never create or select an Article version.
 
+## `import-batch`
+
+```powershell
+uv run reinaluxe-recovery import-batch MANIFEST_PATH `
+  [--database PATH] [--dry-run] `
+  [--continue-on-error | --fail-fast] `
+  [--persist-failed | --no-persist-failed] `
+  [--entry-id TEXT]... [--limit INTEGER] `
+  [--json] [--output PATH]
+```
+
+Loads one strict local JSON manifest and processes enabled entries in manifest
+order. Without `--database`, the command always performs a dry run and reports
+`not persisted`. `--dry-run` also prevents database creation or upgrade when a
+database path is supplied.
+
+`--entry-id` is repeatable. Unknown IDs fail clearly; `--limit` applies after
+enabled-entry and explicit-ID filtering while preserving manifest order. The
+default is `--continue-on-error`; `--fail-fast` marks later selected entries as
+`not_attempted`. Controlled failed imports persist diagnostics by default only
+when a database is active.
+
+`--json` prints `BatchImportResult`. `--output` creates requested parent
+directories and writes the same contract as UTF-8 JSON, but refuses to overwrite
+an existing file. Human output includes aggregate counts and one concise row per
+manifest entry.
+
+Batch exit codes are:
+
+- `0`: every attempted entry succeeded, including a valid dry run;
+- `1`: one or more file or controlled import failures were reported;
+- `2`: invalid argument, manifest, confined-path policy, or output operation;
+- `3`: database initialization or migration failure;
+- `4`: one or more persistence-system failures;
+- `5`: unknown entry filter or no matching enabled entries.
+
+A missing selected HTML file or expected-hash mismatch is reported as an entry
+failure (`1`) so `--continue-on-error` can still process other entries. Absolute
+or escaping manifest paths invalidate the manifest before database work (`2`).
+
 ## `list-pages`
 
 ```powershell

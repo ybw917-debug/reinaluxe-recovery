@@ -17,6 +17,15 @@ from reinaluxe_recovery.application import (
     PageNotFoundError,
     PageQueryService,
 )
+from reinaluxe_recovery.batch import (
+    BatchFailureKind,
+    BatchImportOptions,
+    BatchImportResult,
+    BatchImportWorkflow,
+    BatchManifestError,
+    BatchPathError,
+    BatchSelectionError,
+)
 from reinaluxe_recovery.importing import (
     HtmlFileInput,
     ImportStatus,
@@ -195,6 +204,168 @@ def _run_json_only_import(import_input: HtmlFileInput, output: Path | None) -> N
 
     if result.status is ImportStatus.FAILED:
         raise typer.Exit(code=EXIT_CONTENT_FAILURE)
+
+
+@app.command("import-batch")
+def import_batch(
+    manifest_path: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            help="Local UTF-8 JSON batch manifest.",
+        ),
+    ],
+    database: Annotated[
+        Path | None,
+        typer.Option("--database", help="Persist to this local SQLite database."),
+    ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Validate and parse without database writes."),
+    ] = False,
+    continue_on_error: Annotated[
+        bool,
+        typer.Option(
+            "--continue-on-error/--fail-fast",
+            help="Continue after entry failures or stop before later entries.",
+        ),
+    ] = True,
+    persist_failed: Annotated[
+        bool,
+        typer.Option(
+            "--persist-failed/--no-persist-failed",
+            help="Store controlled failed-import diagnostics when persisting.",
+        ),
+    ] = True,
+    entry_ids: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--entry-id",
+            help="Select one entry ID; repeat to select multiple entries.",
+        ),
+    ] = None,
+    limit: Annotated[
+        int | None,
+        typer.Option("--limit", min=1, help="Maximum selected enabled entries."),
+    ] = None,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Print stable JSON output."),
+    ] = False,
+    output: Annotated[
+        Path | None,
+        typer.Option("--output", help="Write UTF-8 result JSON to a new local file."),
+    ] = None,
+) -> None:
+    """Import an ordered local JSON manifest without network access."""
+    if output is not None and output.exists():
+        error_console.print(
+            f"Batch output error: refusing to overwrite existing file: {output}",
+            style="red",
+        )
+        raise typer.Exit(code=EXIT_INPUT_ERROR)
+
+    try:
+        options = BatchImportOptions(
+            continue_on_error=continue_on_error,
+            persist_failed=persist_failed,
+            dry_run=dry_run or database is None,
+            limit=limit,
+            entry_ids=entry_ids,
+        )
+        result = BatchImportWorkflow().run(
+            manifest_path,
+            options=options,
+            database_path=database,
+        )
+    except ValidationError as error:
+        error_console.print(f"Batch option error: {error}", style="red")
+        raise typer.Exit(code=EXIT_INPUT_ERROR) from error
+    except (BatchManifestError, BatchPathError) as error:
+        error_console.print(f"Batch manifest error: {error}", style="red")
+        raise typer.Exit(code=EXIT_INPUT_ERROR) from error
+    except BatchSelectionError as error:
+        error_console.print(f"Batch selection error: {error}", style="red")
+        raise typer.Exit(code=EXIT_QUERY_ERROR) from error
+    except (DatabaseConfigurationError, DatabaseLifecycleError) as error:
+        error_console.print(f"Database initialization error: {error}", style="red")
+        raise typer.Exit(code=EXIT_DATABASE_ERROR) from error
+
+    rendered = result.model_dump_json(indent=2)
+    if output is not None:
+        try:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(f"{rendered}\n", encoding="utf-8")
+        except OSError as error:
+            error_console.print(f"Batch output error: {error}", style="red")
+            raise typer.Exit(code=EXIT_INPUT_ERROR) from error
+
+    if json_output:
+        _print_json(rendered)
+    else:
+        _print_batch_result(result, output)
+
+    if any(
+        item.failure_kind is BatchFailureKind.PERSISTENCE for item in result.results
+    ):
+        error_console.print(
+            "Batch completed with a persistence-system failure.", style="red"
+        )
+        raise typer.Exit(code=EXIT_PERSISTENCE_ERROR)
+    if result.failed_entries:
+        error_console.print(
+            f"Batch completed with {result.failed_entries} failed entry or entries.",
+            style="yellow",
+        )
+        raise typer.Exit(code=EXIT_CONTENT_FAILURE)
+
+
+def _print_batch_result(result: BatchImportResult, output: Path | None) -> None:
+    """Render one concise owner-facing batch summary and ordered entry table."""
+    console.print(f"Batch: {result.batch_id}")
+    console.print(f"Manifest: {result.manifest_path}")
+    console.print(
+        f"Database: {result.database_path if result.database_path else 'not persisted'}"
+    )
+    console.print(
+        "Counts: "
+        f"total={result.total_entries}, enabled={result.enabled_entries}, "
+        f"attempted={result.attempted_entries}, "
+        f"succeeded={result.succeeded_entries}, failed={result.failed_entries}, "
+        f"skipped={result.skipped_entries}"
+    )
+    console.print(
+        "Persistence: "
+        f"pages created/reused={result.created_pages}/{result.reused_pages}, "
+        f"crawls created/reused={result.created_crawls}/{result.reused_crawls}, "
+        "Article versions created/reused="
+        f"{result.created_article_versions}/{result.reused_article_versions}"
+    )
+    table = Table(title="Batch entries")
+    table.add_column("Entry")
+    table.add_column("Status")
+    table.add_column("Page")
+    table.add_column("Crawl")
+    table.add_column("Article")
+    table.add_column("Version", justify="right")
+    table.add_column("Message")
+    for item in result.results:
+        table.add_row(
+            item.entry_id,
+            item.status.value,
+            item.page_disposition.value if item.page_disposition else "-",
+            item.crawl_disposition.value if item.crawl_disposition else "-",
+            item.article_disposition.value if item.article_disposition else "-",
+            str(item.article_version_number or "-"),
+            item.error_message or "",
+        )
+    console.print(table)
+    console.print(f"Overall status: {result.overall_status.value}")
+    if output is not None:
+        console.print(f"Wrote batch result JSON to {output}")
 
 
 @app.command("list-pages")

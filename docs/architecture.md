@@ -27,6 +27,8 @@ Sprint 1 Stage 004C exposes those local capabilities through programmatic
 database lifecycle services, application DTOs, and a thin offline CLI.
 Sprint 1 Stage 004D verifies and documents the complete local workflow without
 expanding product behavior.
+Sprint 2 Issue 005 adds a sequential batch application boundary over the same
+offline parser, normalizer, lifecycle, and per-import persistence service.
 
 ## Repository structure
 
@@ -189,3 +191,27 @@ This scaffold does not implement:
 Stage 004D closes Sprint 1 through documentation consistency, CLI help checks,
 the complete automated quality suite, and an isolated idempotent smoke workflow.
 It adds no new runtime capability, dependency, database schema, or integration.
+
+## Issue 005 batch boundary
+
+The batch flow is deliberately synchronous and local:
+
+```text
+local JSON manifest -> strict contract + confined paths -> ordered HTML entries
+                    -> existing parser + normalizer
+                    -> existing per-entry persistence transaction (optional)
+                    -> stable aggregate report
+```
+
+Manifest validation and path confinement complete before database lifecycle
+work. A selected file is decoded with the existing UTF-8 policy, source-hash
+checked before parsing when requested, and parsed exactly once. The workflow
+initializes or upgrades a requested database once, then delegates each entry to
+the existing persistence service so one failure cannot roll back earlier
+entries. Counts are derived from immutable entry results.
+
+Dry runs never initialize a database. Rerunning a manifest is the only resume
+mechanism and relies on existing crawl and Article-version idempotency. There is
+no network client, parallel processing, retry loop, checkpoint store, scheduler,
+or migration change. See [Batch Import Contract](batch-import-contract.md) and
+[Batch Import Workflow](batch-import-workflow.md).

@@ -65,6 +65,17 @@ CLI changes also require an isolated smoke workflow: initialize a temporary
 database, import an existing offline fixture, list pages, show the page, and
 remove the temporary directory afterward.
 
+Batch changes should first run the focused suite:
+
+```console
+uv run pytest tests/batch
+```
+
+Final batch validation includes two temporary workflows outside the repository:
+one dry run that creates no database, and one persisted run that verifies exact
+rerun reuse plus changed-content versioning. Remove all temporary manifests,
+HTML copies, reports, and databases afterward.
+
 ## 5. Review the result
 
 Inspect the final diff and status. Confirm that no secrets, local data, or

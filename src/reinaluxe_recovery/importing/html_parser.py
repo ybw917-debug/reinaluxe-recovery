@@ -41,6 +41,11 @@ _SCHEMA_TYPES = {
 }
 
 
+def hash_html_body(html_body: str) -> str:
+    """Return the importer source hash for one decoded HTML document."""
+    return sha256(html_body.encode("utf-8")).hexdigest()
+
+
 def _text(value: str) -> str:
     """Collapse all HTML whitespace to a single ASCII space."""
     return re.sub(r"\s+", " ", value).strip()
@@ -398,7 +403,7 @@ def parse_html(
         status_code=status_code,
         headers=headers,
         html_body=html_body,
-        source_hash=sha256(html_body.encode("utf-8")).hexdigest(),
+        source_hash=hash_html_body(html_body),
         canonical_url=_canonical_url(soup, str(source_url), warnings),
         title=title,
         h1=h1,

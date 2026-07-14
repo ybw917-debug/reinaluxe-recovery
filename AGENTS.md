@@ -8,11 +8,12 @@ making focused, reviewable changes.
 
 ## Current stage
 
-Sprint 1 is complete. The implemented product boundary is deterministic offline
-HTML/JSON import, local SQLite persistence and migrations, idempotent Article
-versioning, and local CLI inspection. Live acquisition, analysis, scoring,
-generation, publishing, and external integrations require a separate,
-explicitly approved issue.
+Sprint 1 is complete. Sprint 2 Issue 005 adds deterministic sequential batch
+import from an explicit local JSON manifest. The implemented product boundary is
+offline HTML/JSON import, local SQLite persistence and migrations, idempotent
+Article versioning, and local CLI inspection. Live acquisition, parallel or
+background processing, analysis, scoring, generation, publishing, and external
+integrations require a separate, explicitly approved issue.
 
 ## Working rules
 

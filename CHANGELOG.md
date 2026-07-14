@@ -53,6 +53,12 @@ Notable project changes are recorded in this file.
   workflow check.
 - Reconfirmed JSON-only compatibility, failed-import policy, ignored local data,
   offline-only operation, and the complete pytest, Ruff, and mypy quality gates.
+- Added strict versioned JSON batch manifests with confined relative paths,
+  timestamp/header inheritance, source-hash validation, filtering, and limits.
+- Added sequential dry-run and persisted batch orchestration that reuses the
+  existing parser, normalizer, database lifecycle, and per-entry transactions.
+- Added `import-batch` with human and JSON reports, continue/fail-fast handling,
+  rerun-based resume, stable exit codes, synthetic fixtures, and focused tests.
 
 ## Sprint 1
 

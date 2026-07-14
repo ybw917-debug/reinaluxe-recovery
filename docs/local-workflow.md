@@ -62,6 +62,31 @@ uv run reinaluxe-recovery list-pages --database $Database
 
 No database file, JSON output, or saved HTML belongs in Git.
 
+## Batch workflow
+
+Keep a manifest beside an owner-controlled `html` directory. Entry paths are
+relative to the manifest file:
+
+```powershell
+# Review parsing and diagnostics without database writes.
+uv run reinaluxe-recovery import-batch D:\ReinaLuxeImports\manifest.json `
+  --dry-run
+
+# Persist sequentially; continue after an individual entry failure.
+uv run reinaluxe-recovery import-batch D:\ReinaLuxeImports\manifest.json `
+  --database data\reinaluxe-recovery.db `
+  --continue-on-error
+```
+
+Repeat the same command to resume. Identical observations are reported as
+reused, corrected failed entries are attempted again, new observations with
+unchanged normalized content add crawl history without duplicating an Article
+version, and changed content creates the next version.
+
+Use `--fail-fast` when later entries should remain unattempted after the first
+failure. Use repeated `--entry-id ID` options and optional `--limit N` for an
+ordered subset. Neither option changes the manifest.
+
 ## Manual backup and restoration
 
 The SQLite database is one local file. Close any active ReinaLuxe Recovery

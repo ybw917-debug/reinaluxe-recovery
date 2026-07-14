@@ -11,7 +11,7 @@ from reinaluxe_recovery.importing.contracts import (
     ParsedDocument,
     load_json_fixture,
 )
-from reinaluxe_recovery.importing.html_parser import parse_html
+from reinaluxe_recovery.importing.html_parser import hash_html_body, parse_html
 from reinaluxe_recovery.importing.normalizer import (
     import_html_file,
     import_json_fixture,
@@ -37,6 +37,7 @@ __all__ = [
     "ParsedDocument",
     "import_html_file",
     "import_json_fixture",
+    "hash_html_body",
     "load_json_fixture",
     "normalize_document",
     "parse_html",

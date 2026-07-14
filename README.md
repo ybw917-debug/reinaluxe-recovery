@@ -3,9 +3,9 @@
 ReinaLuxe Recovery OS is an AI-native SEO recovery and knowledge management
 system for ReinaLuxe.
 
-> **Current sprint:** Sprint 1 — Content Audit System
+> **Current sprint:** Sprint 2 — Local Content Audit Operations
 >
-> **Status:** Sprint 1 release verification complete
+> **Status:** Issue 005 implemented and validated
 
 ## Project goals
 
@@ -83,6 +83,24 @@ never crawl the supplied URL. Use project commands through `uv`; do not use the
 older system Python. See the [CLI reference](docs/cli-reference.md) and
 [local workflow](docs/local-workflow.md) for optional flags and detailed use.
 
+## Batch offline import
+
+Use an explicit local JSON manifest to validate or import multiple saved HTML
+files in manifest order. This command remains offline and uses the same parser,
+persistence transactions, and idempotent versioning as single-file import:
+
+```powershell
+# Validate and parse every enabled entry without creating a database.
+uv run reinaluxe-recovery import-batch .\batch\manifest.json --dry-run
+
+# Persist entries one at a time to the local database.
+uv run reinaluxe-recovery import-batch .\batch\manifest.json `
+  --database data\reinaluxe-recovery.db
+```
+
+See the [batch manifest contract](docs/batch-import-contract.md) and
+[batch workflow](docs/batch-import-workflow.md) before preparing a manifest.
+
 ## Documentation
 
 - [Architecture](docs/architecture.md)
@@ -92,5 +110,8 @@ older system Python. See the [CLI reference](docs/cli-reference.md) and
 - [Coding guidelines](docs/coding-guidelines.md)
 - [CLI reference](docs/cli-reference.md)
 - [Local offline workflow](docs/local-workflow.md)
+- [Batch manifest contract](docs/batch-import-contract.md)
+- [Batch import workflow](docs/batch-import-workflow.md)
+- [Sprint 2](docs/sprint-2.md)
 
 Started by Bowen Yuan.

@@ -10,27 +10,32 @@ ReinaLuxe Recovery OS has three long-term goals:
 
 ## Current sprint
 
-### Sprint 1 — Content Audit System
+### Sprint 2 — Local Content Audit Operations
 
-Status: 🟢 In Development
+Status: Issue 005 implemented and validated
 
-Issue 001 is limited to repository scaffolding:
+Sprint 1 completed the repository, domain contracts, deterministic single-file
+offline importer, SQLite persistence and migrations, idempotent versioning, and
+local inspection CLI.
 
-- Establish project metadata and tooling configuration.
-- Create the minimal Python package and test layout.
-- Document architecture, scope, workflow, and coding practices.
-- Provide safe configuration examples.
-- Prepare the repository for environment validation.
+Issue 005 adds deterministic batch offline import:
+
+- Strict versioned local JSON manifests
+- Manifest-root path confinement and optional source-hash checks
+- Sequential dry-run and per-entry persisted workflows
+- Continue-on-error, fail-fast, filters, limits, and stable reports
+- Rerun-based resume through existing persistence idempotency
 
 ## Future work
 
-Later approved issues may define and implement the Content Audit System and
-other product capabilities. Their requirements, interfaces, data models,
-integrations, priorities, and delivery dates remain intentionally undecided at
-this stage.
+Later approved issues may add structural audit and recovery capabilities on the
+validated local content base. Requirements, interfaces, priorities, and delivery
+dates remain subject to separate issue approval.
 
 ## Current scope exclusions
 
-Issue 001 does not implement crawler, parser, database-model, SEO, LLM, Reddit,
-WordPress, Pinterest, or dashboard functionality. Listing these areas does not
-commit their design, priority, or delivery date.
+Issue 005 does not implement live acquisition, sitemap access, network clients,
+parallel or background jobs, automatic retries, similarity, SEO scoring,
+recovery prioritization, LLMs, rewriting, WordPress, Reddit, Pinterest,
+publishing, scheduling, cloud storage, or dashboards. Listing these areas does
+not commit their design, priority, or delivery date.

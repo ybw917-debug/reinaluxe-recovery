@@ -7,7 +7,8 @@ Status: 🟢 In Development
 Sprint 1 begins the Content Audit System. Issue 001 provides the repository
 foundation. Issue 002 defines the domain model and data contracts required for
 later approved implementation work. Issue 003 provides deterministic offline
-normalization of owner-provided content into those contracts.
+normalization of owner-provided content into those contracts. Stage 004A adds
+the local SQLite schema and migration foundation.
 
 ## Issue 001 — Repository scaffolding
 
@@ -129,3 +130,30 @@ Convert owner-provided local HTML and structured JSON fixtures into validated
 - Persistence, SQLAlchemy models, or migrations
 - Scoring, similarity, SEO conclusions, LLMs, rewriting, or publishing
 - Pinterest, dashboards, and business automation
+
+## Stage 004A — SQLite schema and initial migration
+
+### Objective
+
+Create the local persistence foundation without implementing persistence
+workflows or repository queries.
+
+### Deliverables
+
+- Typed SQLAlchemy 2.x models for pages, crawls, article versions, and warnings
+- Synchronous SQLite engine, session, transaction, and UTC timestamp utilities
+- Foreign-key enforcement and conservative history relationships
+- Configurable Alembic environment and reviewed initial migration
+- Upgrade, downgrade, schema, relationship, constraint, and timestamp tests
+- Database-schema and persistence-foundation documentation
+
+### Acceptance criteria
+
+- Existing Pydantic domain and import contracts remain unchanged.
+- Complex validated content is stored as JSON rather than over-normalized.
+- Required uniqueness constraints and indexes are present.
+- Naive datetimes are rejected and aware values normalize to UTC.
+- Migration upgrade creates the schema and downgrade removes it.
+- Tests create databases only in temporary directories.
+- No repository/service behavior, CLI database command, or external integration
+  is introduced.

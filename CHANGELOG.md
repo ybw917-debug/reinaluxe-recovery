@@ -26,6 +26,12 @@ Notable project changes are recorded in this file.
   offline `import-html` CLI command.
 - Added representative offline fixtures, import/CLI tests, and Issue 003
   documentation.
+- Added the Stage 004A SQLAlchemy schema for page, crawl, article-version, and
+  import-warning history.
+- Added synchronous SQLite configuration with foreign-key enforcement,
+  UTC-aware timestamp storage, explicit transaction scope, and Alembic.
+- Added a reviewed initial upgrade/downgrade migration plus schema-level tests
+  and persistence documentation.
 
 ## Sprint 1
 

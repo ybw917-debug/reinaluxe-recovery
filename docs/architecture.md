@@ -19,6 +19,8 @@ persistence, or integrations.
 Sprint 1 Issue 003 adds a deterministic offline import boundary for
 owner-provided HTML and JSON fixtures. It creates validated raw and normalized
 domain records without accessing any website.
+Sprint 1 Stage 004A adds the local SQLite schema and migration foundation while
+leaving persistence workflows and repository operations for a later stage.
 
 ## Repository structure
 
@@ -28,6 +30,9 @@ domain records without accessing any website.
   and controlled vocabularies.
 - `src/reinaluxe_recovery/importing/` contains local input contracts, the
   BeautifulSoup parser, deterministic normalizer, and import diagnostics.
+- `src/reinaluxe_recovery/persistence/` contains internal SQLAlchemy metadata,
+  SQLite configuration, UTC types, and transaction utilities.
+- `migrations/` contains reviewed Alembic schema revisions.
 - `tests/` contains automated tests, beginning with an import smoke test.
 - `docs/` contains architecture, roadmap, sprint, workflow, and coding guidance.
 - `data/` is reserved for future local runtime data; generated or sensitive
@@ -99,6 +104,23 @@ The CLI remains thin: it validates paths and owner-supplied provenance, calls
 the import boundary, and prints or writes JSON. No network client, persistence
 adapter, or business integration exists. See [Offline Import](offline-import.md)
 and [Import Contracts](import-contracts.md).
+
+## Stage 004A persistence foundation
+
+SQLite stores page identities, raw crawl observations, normalized Article JSON
+versions, and import warnings. Complex domain structures remain validated JSON;
+the schema does not duplicate every content component relationally. SQLAlchemy
+ORM objects remain internal and never replace Pydantic application contracts.
+
+All history foreign keys use conservative `RESTRICT` behavior. SQLite foreign
+keys are enabled on every connection, datetimes are rejected unless aware and
+stored as UTC ISO 8601 values, and transactions use an explicit context
+manager. Alembic owns schema creation and downgrade behavior. See
+[Database Schema](database-schema.md) and
+[Persistence Foundation](persistence-foundation.md).
+
+Stage 004A deliberately omits repositories, save/idempotency workflows,
+article-version decisions, and CLI database commands.
 
 ## Issue 001 scope boundary
 

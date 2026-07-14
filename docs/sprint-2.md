@@ -9,6 +9,10 @@ and generation remain outside scope.
 Issue 007 adds conservative public read-only acquisition and Issue 005 manifest
 generation. Acquisition remains separate from import, persistence, and audit;
 it adds no login, publishing, browser automation, bypass, or background work.
+Issue 007A corrects robots classification so unavailable policy fails the page
+with a controlled robots error while genuine policy denial alone is skipped.
+It also adds deterministic product-group selection, duplicate-group merging,
+and longest-path Allow/Disallow precedence without expanding acquisition scope.
 
 ## Sprint intent
 

@@ -7,6 +7,7 @@ from reinaluxe_recovery.acquisition import (
     AcquisitionSourceType,
     AcquisitionWorkflow,
 )
+from reinaluxe_recovery.acquisition.contracts import AcquisitionStatus
 from reinaluxe_recovery.batch import BatchImportOptions, BatchImportWorkflow
 from reinaluxe_recovery.batch.loader import load_batch_manifest
 
@@ -84,3 +85,57 @@ def test_mocked_sitemap_index_workflow(tmp_path, public_resolver) -> None:
         transport=httpx.MockTransport(handler), resolver=public_resolver
     ).run(request)
     assert result.fetched_count == 1
+
+
+def test_robots_transport_failure_counts_as_failed(tmp_path, public_resolver) -> None:
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        raise httpx.ReadError("unavailable", request=request)
+
+    request = AcquisitionRequest(
+        acquisition_id="robots-failure",
+        created_at=datetime.now(UTC),
+        source_type=AcquisitionSourceType.URL_LIST,
+        explicit_urls=("https://example.com/a", "https://example.com/b"),
+        allowed_hosts=frozenset({"example.com"}),
+        output_directory=tmp_path,
+        user_agent="Owner",
+        delay_between_requests_seconds=0,
+    )
+    result = AcquisitionWorkflow(
+        transport=httpx.MockTransport(handler), resolver=public_resolver
+    ).run(request)
+
+    assert result.failed_count == 2
+    assert result.skipped_count == 0
+    assert result.attempted_count == 2
+    assert all(page.status is AcquisitionStatus.FAILED for page in result.pages)
+    assert len(calls) == 1
+
+
+def test_robots_disallow_counts_as_skipped(tmp_path, public_resolver) -> None:
+    def handler(request):
+        return httpx.Response(
+            200, text="User-agent: *\nDisallow: /private", request=request
+        )
+
+    request = AcquisitionRequest(
+        acquisition_id="robots-disallow",
+        created_at=datetime.now(UTC),
+        source_type=AcquisitionSourceType.URL_LIST,
+        explicit_urls=("https://example.com/private",),
+        allowed_hosts=frozenset({"example.com"}),
+        output_directory=tmp_path,
+        user_agent="Owner",
+        delay_between_requests_seconds=0,
+    )
+    result = AcquisitionWorkflow(
+        transport=httpx.MockTransport(handler), resolver=public_resolver
+    ).run(request)
+
+    assert result.failed_count == 0
+    assert result.skipped_count == 1
+    assert result.attempted_count == 0
+    assert result.pages[0].error_type == "robots_disallow"

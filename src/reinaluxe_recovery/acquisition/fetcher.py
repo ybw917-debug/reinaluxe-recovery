@@ -1,14 +1,15 @@
 """Sequential HTTP fetching with redirect, robots, size, and metadata policy."""
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from time import monotonic
 from urllib.parse import urljoin
-from urllib.robotparser import RobotFileParser
 from uuid import NAMESPACE_URL, uuid5
 
 import httpx
 
 from reinaluxe_recovery.acquisition.contracts import AcquiredPage, AcquisitionStatus
+from reinaluxe_recovery.acquisition.robots import RobotsPolicy, product_token
 from reinaluxe_recovery.acquisition.url_normalization import (
     Resolver,
     validate_public_url,
@@ -24,6 +25,13 @@ SAFE_RESPONSE_HEADERS = {
     "cache-control",
     "location",
 }
+
+
+@dataclass(frozen=True)
+class RobotsFailure:
+    error_type: str
+    message: str
+    status_code: int | None = None
 
 
 def safe_headers(headers: httpx.Headers) -> dict[str, str]:
@@ -48,9 +56,10 @@ class SafeFetcher:
         self.user_agent = user_agent
         self.resolver = resolver
         self.timeout = timeout
-        self._robots: dict[str, RobotFileParser] = {}
+        self._robots_product = product_token(user_agent)
+        self._robots: dict[str, RobotsPolicy | RobotsFailure] = {}
 
-    def robots_allows(self, url: str) -> bool:
+    def _robots_result(self, url: str) -> RobotsPolicy | RobotsFailure:
         parts = httpx.URL(url)
         origin = (
             f"{parts.scheme}://{parts.host}{f':{parts.port}' if parts.port else ''}"
@@ -65,26 +74,53 @@ class SafeFetcher:
                     headers={"User-Agent": self.user_agent},
                     timeout=self.timeout,
                 )
-                lines = (
-                    response.text.splitlines()
-                    if response.status_code == 200
-                    else []
-                    if response.status_code == 404
-                    else ["User-agent: *", "Disallow: /"]
+            except httpx.TransportError as error:
+                self._robots[origin] = RobotsFailure(
+                    "robots_fetch_error",
+                    f"robots.txt request failed: {type(error).__name__}",
                 )
-            except httpx.HTTPError:
-                lines = ["User-agent: *", "Disallow: /"]
-            parser = RobotFileParser()
-            parser.set_url(robots_url)
-            parser.parse(lines)
-            self._robots[origin] = parser
-        return self._robots[origin].can_fetch(self.user_agent, url)
+            else:
+                if response.status_code == 404:
+                    self._robots[origin] = RobotsPolicy()
+                elif response.status_code != 200:
+                    self._robots[origin] = RobotsFailure(
+                        "robots_http_error",
+                        f"robots.txt returned HTTP {response.status_code}",
+                        response.status_code,
+                    )
+                else:
+                    try:
+                        self._robots[origin] = RobotsPolicy.from_bytes(response.content)
+                    except (UnicodeDecodeError, ValueError):
+                        self._robots[origin] = RobotsFailure(
+                            "robots_parse_error",
+                            "robots.txt could not be parsed as UTF-8 policy",
+                            response.status_code,
+                        )
+        return self._robots[origin]
+
+    def robots_allows(self, url: str) -> bool:
+        result = self._robots_result(url)
+        return isinstance(result, RobotsPolicy) and result.allows(
+            self._robots_product, url
+        )
 
     def fetch(self, url: str) -> tuple[AcquiredPage, bytes | None]:
         started = monotonic()
         requested = validate_public_url(url, self.allowed_hosts, self.resolver)
         entry_id = uuid5(NAMESPACE_URL, requested).hex
-        if not self.robots_allows(requested):
+        robots = self._robots_result(requested)
+        if isinstance(robots, RobotsFailure):
+            return AcquiredPage(
+                entry_id=entry_id,
+                requested_url=requested,  # type: ignore[arg-type]
+                status_code=robots.status_code,
+                status=AcquisitionStatus.FAILED,
+                error_type=robots.error_type,
+                error_message=robots.message,
+                duration_ms=int((monotonic() - started) * 1000),
+            ), None
+        if not robots.allows(self._robots_product, requested):
             return AcquiredPage(
                 entry_id=entry_id,
                 requested_url=requested,  # type: ignore[arg-type]

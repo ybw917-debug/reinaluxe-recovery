@@ -65,6 +65,9 @@ Notable project changes are recorded in this file.
 - Added synchronous read-only public HTML acquisition with explicit host and
   robots safeguards, confined snapshots, validated batch-manifest generation,
   mocked-network tests, and the `acquire-site` CLI.
+- Corrected robots handling to cache fail-closed transport, HTTP, and parse
+  failures as failed pages instead of synthetic policy disallows, and added
+  deterministic product-token, duplicate-group, and longest-path rule matching.
 
 ## Sprint 1
 

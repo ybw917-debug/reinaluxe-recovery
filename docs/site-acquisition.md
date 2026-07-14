@@ -36,7 +36,24 @@ writing. It contains one enabled entry per fetched/unchanged snapshot, the final
 allowed URL, fetch timestamp/status, safe response headers, relative HTML path,
 and expected source hash.
 
+Before an article request, robots policy is loaded once per origin and cached
+for that run. HTTP 200 is parsed and HTTP 404 allows acquisition. A policy rule
+that denies the URL produces `skipped / robots_disallow`. A robots transport
+failure, non-200/non-404 status, or UTF-8 parse failure instead produces a
+failed page with `robots_fetch_error`, `robots_http_error`, or
+`robots_parse_error`; it remains fail-closed and is inherited by later pages at
+that origin without another robots request. No article request is made in these
+failure cases and no automatic retry occurs.
+
+Robots matching uses the configured User-Agent's leading product token while
+the complete configured value is still sent in HTTP. Case-insensitive exact
+product-token groups are merged; partial names do not match, and wildcard
+groups are used only when no exact group exists. The longest matching rule wins
+and Allow wins a tie. Matching covers the
+normalized path plus query string when present, so query-specific policy rules
+are supported consistently.
+
 Exit codes: `0` complete, `1` controlled page failure, `2` arguments/list/path,
-`3` sitemap or robots discovery, `4` unsafe target or acquisition system, and
+`3` sitemap discovery, `4` unsafe target or acquisition system, and
 `5` no eligible URL. No automatic retries, conditional requests, hidden state,
 parallelism, background work, or scheduling exist.

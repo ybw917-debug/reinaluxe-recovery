@@ -20,6 +20,11 @@ contracts, local SQLite persistence, idempotent Article history, programmatic
 database lifecycle, and owner-facing CLI queries. It does not implement live
 crawling, SEO scoring, LLM calls, publishing, or external integrations.
 
+Stages 009A and 009B also provide an isolated offline evidence workflow:
+owner-approved knowledge can be snapshot, mapped to the authoritative page-role
+plan, reviewed as content opportunities, and locked into a future drafting
+manifest. This workflow does not draft copy, change the database, or publish.
+
 ## Tech stack
 
 - Python 3.12 managed with `uv`
@@ -140,5 +145,8 @@ plus a batch manifest. It does not publish, import, or audit automatically. See
 - [Community evidence policy](docs/community-evidence-policy.md)
 - [Community offline import](docs/community-offline-import.md)
 - [Community review workflow](docs/community-review-workflow.md)
+- [Approved knowledge content mapping](docs/community-content-mapping.md)
+- [Content opportunity review](docs/content-opportunity-review.md)
+- [Content change manifest](docs/content-change-manifest.md)
 
 Started by Bowen Yuan.

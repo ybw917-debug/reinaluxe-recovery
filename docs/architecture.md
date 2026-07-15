@@ -29,6 +29,11 @@ Sprint 1 Stage 004D verifies and documents the complete local workflow without
 expanding product behavior.
 Sprint 2 Issue 005 adds a sequential batch application boundary over the same
 offline parser, normalizer, lifecycle, and per-import persistence service.
+Stage 009A adds isolated offline community evidence review and approved
+knowledge. Stage 009B maps that knowledge against the authoritative 25-page
+role plan and read-only current Article context, then requires owner decisions
+before creating a hash-locked content change manifest. It drafts and publishes
+nothing.
 
 ## Repository structure
 
@@ -40,6 +45,10 @@ offline parser, normalizer, lifecycle, and per-import persistence service.
   BeautifulSoup parser, deterministic normalizer, and import diagnostics.
 - `src/reinaluxe_recovery/application/` coordinates importer, persistence, and
   detached page queries without duplicating their behavior.
+- `src/reinaluxe_recovery/community/` owns the isolated offline evidence and
+  approved-knowledge workflow.
+- `src/reinaluxe_recovery/content_ops/` owns deterministic page-context,
+  opportunity-review, and change-manifest planning.
 - `src/reinaluxe_recovery/persistence/` contains internal SQLAlchemy metadata,
   SQLite configuration, UTC types, Pydantic persistence DTOs, repositories, and
   the offline transactional import service.

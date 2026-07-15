@@ -53,6 +53,15 @@ from reinaluxe_recovery.community import (
     export_community_review,
     import_community_manifest,
 )
+from reinaluxe_recovery.content_ops import (
+    ContentOpsError,
+    apply_opportunity_decisions,
+    build_content_change_manifest,
+    build_knowledge_snapshot,
+    build_page_context,
+    export_opportunity_review,
+    map_content_opportunities,
+)
 from reinaluxe_recovery.importing import (
     HtmlFileInput,
     ImportStatus,
@@ -83,6 +92,7 @@ EXIT_DATABASE_ERROR = 3
 EXIT_PERSISTENCE_ERROR = 4
 EXIT_QUERY_ERROR = 5
 EXIT_COMMUNITY_ERROR = 6
+EXIT_CONTENT_OPS_ERROR = 7
 
 
 @app.command()
@@ -698,6 +708,171 @@ def community_build_kb(
         raise typer.Exit(code=EXIT_COMMUNITY_ERROR) from error
     console.print(
         f"Knowledge base created with {summary['approved_knowledge_count']} entries."
+    )
+    console.print(f"Output: {output}")
+
+
+@app.command("community-build-snapshot")
+def community_build_snapshot(
+    inputs: Annotated[
+        list[Path],
+        typer.Option("--inputs", exists=True, file_okay=False, dir_okay=True),
+    ],
+    output: Annotated[Path, typer.Option("--output", file_okay=False)],
+) -> None:
+    """Build an immutable approved-knowledge snapshot from local KB batches."""
+    try:
+        manifest = build_knowledge_snapshot(inputs, output)
+    except (ContentOpsError, ValidationError, OSError) as error:
+        error_console.print(f"Knowledge snapshot error: {error}", style="red")
+        raise typer.Exit(code=EXIT_CONTENT_OPS_ERROR) from error
+    console.print(
+        f"Knowledge snapshot {manifest.snapshot_id}: entries={manifest.entry_count}, "
+        f"internal={manifest.internal_only_count}"
+    )
+    console.print(f"Output: {output}")
+
+
+@app.command("content-build-page-context")
+def content_build_page_context(
+    role_matrix: Annotated[
+        Path, typer.Option("--role-matrix", exists=True, file_okay=True, dir_okay=False)
+    ],
+    finding_register: Annotated[
+        Path,
+        typer.Option("--finding-register", exists=True, file_okay=True, dir_okay=False),
+    ],
+    roadmap: Annotated[
+        Path, typer.Option("--roadmap", exists=True, file_okay=True, dir_okay=False)
+    ],
+    output: Annotated[Path, typer.Option("--output", file_okay=False)],
+    database: Annotated[
+        Path,
+        typer.Option("--database", exists=True, file_okay=True, dir_okay=False),
+    ] = Path("data/reinaluxe-recovery.db"),
+    readiness: Annotated[
+        Path | None,
+        typer.Option("--readiness", exists=True, file_okay=True, dir_okay=False),
+    ] = None,
+) -> None:
+    """Snapshot the authoritative 25-page plan and current read-only page state."""
+    try:
+        manifest = build_page_context(
+            role_matrix,
+            finding_register,
+            roadmap,
+            output,
+            database,
+            readiness,
+        )
+    except (ContentOpsError, ValidationError, OSError) as error:
+        error_console.print(f"Page context error: {error}", style="red")
+        raise typer.Exit(code=EXIT_CONTENT_OPS_ERROR) from error
+    console.print(
+        f"Page context {manifest['page_context_snapshot_id']}: "
+        f"pages={manifest['page_count']}"
+    )
+    console.print(f"Output: {output}")
+
+
+@app.command("community-map-opportunities")
+def community_map_opportunities(
+    knowledge_snapshot: Annotated[
+        Path,
+        typer.Option(
+            "--knowledge-snapshot", exists=True, file_okay=False, dir_okay=True
+        ),
+    ],
+    page_context: Annotated[
+        Path,
+        typer.Option("--page-context", exists=True, file_okay=False, dir_okay=True),
+    ],
+    output: Annotated[Path, typer.Option("--output", file_okay=False)],
+) -> None:
+    """Map knowledge to reviewable opportunities with transparent local rules."""
+    try:
+        summary = map_content_opportunities(knowledge_snapshot, page_context, output)
+    except (ContentOpsError, ValidationError, OSError) as error:
+        error_console.print(f"Opportunity mapping error: {error}", style="red")
+        raise typer.Exit(code=EXIT_CONTENT_OPS_ERROR) from error
+    console.print(f"Mapped {summary['opportunity_count']} pending opportunities.")
+    console.print(f"Output: {output}")
+
+
+@app.command("community-export-opportunity-review")
+def community_export_opportunity_review(
+    input_directory: Annotated[
+        Path, typer.Option("--input", exists=True, file_okay=False, dir_okay=True)
+    ],
+    output: Annotated[Path, typer.Option("--output", file_okay=False)],
+) -> None:
+    """Export a blank owner review queue for mapped opportunities."""
+    try:
+        summary = export_opportunity_review(input_directory, output)
+    except (ContentOpsError, ValidationError, OSError) as error:
+        error_console.print(f"Opportunity review export error: {error}", style="red")
+        raise typer.Exit(code=EXIT_CONTENT_OPS_ERROR) from error
+    console.print(
+        f"Review queue created for {summary['opportunity_count']} opportunities."
+    )
+    console.print(f"Output: {output}")
+
+
+@app.command("community-apply-opportunity-decisions")
+def community_apply_opportunity_decisions(
+    review: Annotated[
+        Path, typer.Option("--review", exists=True, file_okay=True, dir_okay=False)
+    ],
+    input_directory: Annotated[
+        Path, typer.Option("--input", exists=True, file_okay=False, dir_okay=True)
+    ],
+    output: Annotated[Path, typer.Option("--output", file_okay=False)],
+) -> None:
+    """Validate owner opportunity decisions without changing content."""
+    try:
+        summary = apply_opportunity_decisions(review, input_directory, output)
+    except (ContentOpsError, ValidationError, OSError) as error:
+        error_console.print(f"Opportunity decision error: {error}", style="red")
+        raise typer.Exit(code=EXIT_CONTENT_OPS_ERROR) from error
+    console.print(
+        f"Opportunity decisions={summary['decision_count']}; "
+        f"pending={summary['pending_count']}"
+    )
+    console.print(f"Output: {output}")
+
+
+@app.command("content-build-change-manifest")
+def content_build_change_manifest(
+    decisions: Annotated[
+        Path, typer.Option("--decisions", exists=True, file_okay=False, dir_okay=True)
+    ],
+    knowledge_snapshot: Annotated[
+        Path,
+        typer.Option(
+            "--knowledge-snapshot", exists=True, file_okay=False, dir_okay=True
+        ),
+    ],
+    page_context: Annotated[
+        Path,
+        typer.Option("--page-context", exists=True, file_okay=False, dir_okay=True),
+    ],
+    output: Annotated[Path, typer.Option("--output", file_okay=False)],
+    database: Annotated[
+        Path,
+        typer.Option("--database", exists=True, file_okay=True, dir_okay=False),
+    ] = Path("data/reinaluxe-recovery.db"),
+) -> None:
+    """Build the hash-locked owner-approved future drafting manifest."""
+    try:
+        manifest = build_content_change_manifest(
+            decisions, knowledge_snapshot, page_context, output, database
+        )
+    except (ContentOpsError, ValidationError, OSError) as error:
+        error_console.print(f"Change manifest error: {error}", style="red")
+        raise typer.Exit(code=EXIT_CONTENT_OPS_ERROR) from error
+    console.print(
+        f"Change manifest {manifest.change_manifest_id}: "
+        f"opportunities={len(manifest.approved_opportunity_ids)}"
     )
     console.print(f"Output: {output}")
 

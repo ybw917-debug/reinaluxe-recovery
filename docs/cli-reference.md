@@ -20,6 +20,36 @@ Community workflow validation errors use exit code `6`. See
 [Community Offline Import](community-offline-import.md) and
 [Community Review Workflow](community-review-workflow.md).
 
+## Approved knowledge and content opportunity commands
+
+`community-build-snapshot --inputs DIRECTORY... --output DIRECTORY` builds a
+hash-locked, byte-stable snapshot from one or more approved Stage 009A KB
+batches. Repeat `--inputs` for additional batches.
+
+`content-build-page-context --role-matrix CSV --finding-register CSV --roadmap
+MARKDOWN --output DIRECTORY [--database PATH] [--readiness CSV]` snapshots the
+authoritative 25-page plan and reads current Article versions through an
+immutable read-only SQLite connection.
+
+`community-map-opportunities --knowledge-snapshot DIRECTORY --page-context
+DIRECTORY --output DIRECTORY` applies transparent entity, role, intent,
+cluster, and temporal rules and emits pending opportunities without copy.
+
+`community-export-opportunity-review --input DIRECTORY --output DIRECTORY`
+creates a blank owner review queue. `community-apply-opportunity-decisions
+--review CSV --input DIRECTORY --output DIRECTORY` validates the completed
+queue and retains pending, rejected, and deferred audit records.
+
+`content-build-change-manifest --decisions DIRECTORY --knowledge-snapshot
+DIRECTORY --page-context DIRECTORY --output DIRECTORY [--database PATH]`
+creates a hash- and page-version-locked future drafting handoff from approved
+decisions only. It performs no drafting or writes.
+
+Content-operation validation errors use exit code `7`. See
+[content mapping](community-content-mapping.md),
+[opportunity review](content-opportunity-review.md), and
+[change manifests](content-change-manifest.md).
+
 All commands run through the repository's uv-managed Python environment and
 remain fully local. None of them fetches a URL.
 

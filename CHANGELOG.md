@@ -4,6 +4,20 @@ Notable project changes are recorded in this file.
 
 ## Unreleased
 
+### Stage 009B
+
+- Added immutable knowledge-snapshot, page-context, content-opportunity, owner
+  decision, and content-change-manifest contracts.
+- Added six offline commands for snapshotting approved knowledge and read-only
+  page context, deterministic opportunity mapping, owner review, decision
+  validation, and hash-locked manifest creation.
+- Added explicit model/material/role/intent/temporal mapping policies,
+  authentication-versus-buying separation, hub/detail coordination, and safe
+  new-article/no-action handling without copy generation.
+- Added sanitized Chanel, Hermès, and Louis Vuitton fixtures plus end-to-end
+  tests for 25-page preservation, auditability, stale-input rejection, and
+  manifest locks.
+
 ### Stage 009A
 
 - Added strict public contracts for offline community source records, atomic

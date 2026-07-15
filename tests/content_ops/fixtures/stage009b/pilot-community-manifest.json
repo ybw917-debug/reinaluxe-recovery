@@ -1,0 +1,157 @@
+{
+  "schema_version": "1.0",
+  "import_batch_id": "stage009b-sanitized-pilot",
+  "created_at": "2026-07-15T02:00:00Z",
+  "default_encoding": "utf-8",
+  "metadata": {"purpose": "offline sanitized Chanel, Hermes, and Louis Vuitton mapping pilot"},
+  "sources": [
+    {
+      "source_record_id": "source-chanel-public",
+      "platform": "offline-fixture",
+      "community_or_channel": "sanitized public excerpt",
+      "source_type": "public_community_post",
+      "source_url": "https://example.invalid/chanel-public",
+      "retrieved_at": "2026-07-15T02:00:00Z",
+      "language": "en",
+      "raw_excerpt": "A short synthetic observation about Chanel hardware variation.",
+      "source_scope": "Chanel 19 only",
+      "copyright_retention_mode": "necessary_excerpt_only",
+      "visibility": "public_source"
+    },
+    {
+      "source_record_id": "source-chanel-observation",
+      "platform": "owner",
+      "community_or_channel": "sanitized inspection",
+      "source_type": "first_party_observation",
+      "retrieved_at": "2026-07-15T02:00:00Z",
+      "language": "en",
+      "raw_excerpt": "Synthetic inspected-example notes contain no person or supplier identity.",
+      "source_scope": "one Chanel 19 example",
+      "copyright_retention_mode": "necessary_excerpt_only",
+      "visibility": "internal_only"
+    },
+    {
+      "source_record_id": "source-hermes-public",
+      "platform": "offline-fixture",
+      "community_or_channel": "sanitized public excerpt",
+      "source_type": "public_comment",
+      "source_url": "https://example.invalid/hermes-public",
+      "retrieved_at": "2026-07-15T02:00:00Z",
+      "language": "en",
+      "raw_excerpt": "A short synthetic note distinguishes Constance and Mini Kelly construction.",
+      "source_scope": "Hermes model distinction",
+      "copyright_retention_mode": "necessary_excerpt_only",
+      "visibility": "public_source"
+    },
+    {
+      "source_record_id": "source-hermes-observation",
+      "platform": "owner",
+      "community_or_channel": "sanitized inspection",
+      "source_type": "first_party_observation",
+      "retrieved_at": "2026-07-15T02:00:00Z",
+      "language": "en",
+      "raw_excerpt": "Synthetic Epsom leather and stitching observations for one specimen.",
+      "source_scope": "one inspected Hermes example",
+      "copyright_retention_mode": "necessary_excerpt_only",
+      "visibility": "internal_only"
+    },
+    {
+      "source_record_id": "source-lv-public",
+      "platform": "offline-fixture",
+      "community_or_channel": "sanitized public excerpt",
+      "source_type": "forum_thread",
+      "source_url": "https://example.invalid/lv-public",
+      "retrieved_at": "2026-07-15T02:00:00Z",
+      "language": "en",
+      "raw_excerpt": "A short synthetic observation about canvas print and model construction.",
+      "source_scope": "Louis Vuitton canvas and model distinctions",
+      "copyright_retention_mode": "necessary_excerpt_only",
+      "visibility": "public_source"
+    },
+    {
+      "source_record_id": "source-lv-observation",
+      "platform": "owner",
+      "community_or_channel": "sanitized inspection",
+      "source_type": "first_party_observation",
+      "retrieved_at": "2026-07-15T02:00:00Z",
+      "language": "en",
+      "raw_excerpt": "Synthetic canvas and lining observations contain no private correspondence.",
+      "source_scope": "one inspected Louis Vuitton example",
+      "copyright_retention_mode": "necessary_excerpt_only",
+      "visibility": "internal_only"
+    }
+  ],
+  "candidate_claims": [
+    {
+      "claim_id": "claim-chanel-19",
+      "claim_text": "Chanel 19 hardware finish may vary by production period.",
+      "claim_type": "hardware_claim",
+      "brand": "Chanel",
+      "model": "Chanel 19",
+      "source_record_ids": ["source-chanel-public", "source-chanel-observation"],
+      "evidence_record_ids": [],
+      "extraction_method": "manual",
+      "sensitivity": "public-summary",
+      "proposed_publication_scope": "qualified model-specific summary"
+    },
+    {
+      "claim_id": "claim-hermes-constance",
+      "claim_text": "Constance 18 stitching observations depend on leather context.",
+      "claim_type": "craftsmanship_claim",
+      "brand": "Hermes",
+      "model": "Constance 18",
+      "material": "Epsom leather",
+      "source_record_ids": ["source-hermes-public", "source-hermes-observation"],
+      "evidence_record_ids": [],
+      "extraction_method": "manual",
+      "sensitivity": "public-summary",
+      "proposed_publication_scope": "qualified model-specific summary"
+    },
+    {
+      "claim_id": "claim-lv-canvas",
+      "claim_text": "Monogram canvas print alignment is craftsmanship evidence.",
+      "claim_type": "craftsmanship_claim",
+      "brand": "Louis Vuitton",
+      "material": "Monogram canvas",
+      "source_record_ids": ["source-lv-public", "source-lv-observation"],
+      "evidence_record_ids": [],
+      "extraction_method": "manual",
+      "sensitivity": "public-summary",
+      "proposed_publication_scope": "qualified material summary"
+    },
+    {
+      "claim_id": "claim-chanel-unsupported",
+      "claim_text": "One hardware cue always proves authenticity.",
+      "claim_type": "authentication_indicator",
+      "brand": "Chanel",
+      "source_record_ids": ["source-chanel-public"],
+      "evidence_record_ids": [],
+      "extraction_method": "ai_assisted_unverified",
+      "sensitivity": "internal",
+      "proposed_publication_scope": "do_not_publish"
+    },
+    {
+      "claim_id": "claim-hermes-unsupported",
+      "claim_text": "All Hermes models use identical stitching dimensions.",
+      "claim_type": "correction_or_contradiction",
+      "brand": "Hermes",
+      "source_record_ids": ["source-hermes-public"],
+      "evidence_record_ids": [],
+      "extraction_method": "ai_assisted_unverified",
+      "sensitivity": "internal",
+      "proposed_publication_scope": "do_not_publish"
+    },
+    {
+      "claim_id": "claim-lv-unsupported",
+      "claim_text": "Canvas alignment alone proves Louis Vuitton authenticity.",
+      "claim_type": "authentication_indicator",
+      "brand": "Louis Vuitton",
+      "source_record_ids": ["source-lv-public"],
+      "evidence_record_ids": [],
+      "extraction_method": "ai_assisted_unverified",
+      "sensitivity": "internal",
+      "proposed_publication_scope": "do_not_publish"
+    }
+  ],
+  "evidence_records": []
+}

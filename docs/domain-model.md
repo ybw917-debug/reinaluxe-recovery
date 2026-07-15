@@ -327,3 +327,22 @@ article ID matches the audited article.
 The envelope preserves provenance; it does not assert that an assessment is
 correct, that a recommendation is approved, or that a search-engine penalty
 exists.
+
+## Stage 009B planning contracts
+
+Stage 009B reuses `DomainModel`, `ApprovedKnowledgeEntry`, stable SHA-256
+digests, aware timestamps, and the established owner-review separation. It adds
+five immutable version `1.0` planning contracts:
+
+- `KnowledgeSnapshotManifest` locks deterministic approved, qualified,
+  internal-only, and excluded knowledge membership;
+- `PageContextRecord` locks one current Article version to its authoritative
+  page role, intent, cluster, dependencies, blockers, and prohibitions;
+- `ContentOpportunity` records a transparent pending mapping and never copy;
+- `OpportunityReviewDecision` records one explicit owner disposition and any
+  reviewed target, type, qualification, dependency, and priority;
+- `ContentChangeManifest` is the sole future drafting handoff and locks both
+  source snapshots plus every affected page version and safety constraint.
+
+These transport contracts add no tables or migrations. They cannot represent
+publication approval, URL changes, redirects, canonicals, or merges.

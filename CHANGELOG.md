@@ -4,6 +4,17 @@ Notable project changes are recorded in this file.
 
 ## Unreleased
 
+### Stage 009A
+
+- Added strict public contracts for offline community source records, atomic
+  candidate claims, scoped evidence, owner decisions, and approved knowledge.
+- Added deterministic normalization, hashing, exact deduplication, transparent
+  likely-duplicate reporting, and confined local text/JSON manifest loading.
+- Added offline import, owner review export, decision application, and approved
+  knowledge-base CLI workflows with supplier-confidentiality safeguards.
+- Added community evidence, privacy, import, and human-review policy guides and
+  focused end-to-end tests without changing the site database or acquisition.
+
 ### Repository scaffolding
 
 - Added Python 3.12 project metadata and `uv` dependency groups.

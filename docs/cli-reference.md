@@ -1,5 +1,25 @@
 # CLI Reference
 
+## Offline community evidence commands
+
+`community-import --manifest PATH --output DIRECTORY` validates a confined
+local manifest and writes normalized source, claim, evidence, warning, and
+summary files without fetching source URLs.
+
+`community-export-review --input DIRECTORY --output DIRECTORY` writes CSV/JSON
+owner queues and source/evidence indexes with blank decision fields.
+
+`community-apply-decisions --review CSV --input DIRECTORY --output DIRECTORY`
+validates explicit owner decisions while retaining pending, rejected, and
+contradicted audit records.
+
+`community-build-kb --input DIRECTORY --output DIRECTORY` exports only approved
+or qualified, evidence-linked entries. It does not publish them.
+
+Community workflow validation errors use exit code `6`. See
+[Community Offline Import](community-offline-import.md) and
+[Community Review Workflow](community-review-workflow.md).
+
 All commands run through the repository's uv-managed Python environment and
 remain fully local. None of them fetches a URL.
 

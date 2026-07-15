@@ -46,6 +46,13 @@ from reinaluxe_recovery.batch import (
     BatchPathError,
     BatchSelectionError,
 )
+from reinaluxe_recovery.community import (
+    CommunityWorkflowError,
+    apply_community_decisions,
+    build_community_knowledge_base,
+    export_community_review,
+    import_community_manifest,
+)
 from reinaluxe_recovery.importing import (
     HtmlFileInput,
     ImportStatus,
@@ -75,6 +82,7 @@ EXIT_INPUT_ERROR = 2
 EXIT_DATABASE_ERROR = 3
 EXIT_PERSISTENCE_ERROR = 4
 EXIT_QUERY_ERROR = 5
+EXIT_COMMUNITY_ERROR = 6
 
 
 @app.command()
@@ -606,6 +614,92 @@ def audit_articles(
             console.print(f"Wrote audit result JSON to {output}")
     if fail_on_errors and result.severity_counts.get(AuditSeverity.ERROR, 0):
         raise typer.Exit(code=EXIT_CONTENT_FAILURE)
+
+
+@app.command("community-import")
+def community_import(
+    manifest: Annotated[
+        Path,
+        typer.Option("--manifest", exists=True, file_okay=True, dir_okay=False),
+    ],
+    output: Annotated[Path, typer.Option("--output", file_okay=False)],
+) -> None:
+    """Normalize owner-provided community records deterministically and offline."""
+    try:
+        summary = import_community_manifest(manifest, output)
+    except CommunityWorkflowError as error:
+        error_console.print(f"Community import error: {error}", style="red")
+        raise typer.Exit(code=EXIT_COMMUNITY_ERROR) from error
+    console.print(
+        "Community import complete: "
+        f"sources={summary['source_record_count']}, "
+        f"claims={summary['candidate_claim_count']}, "
+        f"evidence={summary['evidence_record_count']}"
+    )
+    console.print(f"Output: {output}")
+
+
+@app.command("community-export-review")
+def community_export_review(
+    input_directory: Annotated[
+        Path,
+        typer.Option("--input", exists=True, file_okay=False, dir_okay=True),
+    ],
+    output: Annotated[Path, typer.Option("--output", file_okay=False)],
+) -> None:
+    """Export an owner review queue without pre-approving any claim."""
+    try:
+        summary = export_community_review(input_directory, output)
+    except CommunityWorkflowError as error:
+        error_console.print(f"Community review export error: {error}", style="red")
+        raise typer.Exit(code=EXIT_COMMUNITY_ERROR) from error
+    console.print(f"Review queue created for {summary['claim_count']} claims.")
+    console.print(f"Output: {output}")
+
+
+@app.command("community-apply-decisions")
+def community_apply_decisions(
+    review: Annotated[
+        Path,
+        typer.Option("--review", exists=True, file_okay=True, dir_okay=False),
+    ],
+    input_directory: Annotated[
+        Path,
+        typer.Option("--input", exists=True, file_okay=False, dir_okay=True),
+    ],
+    output: Annotated[Path, typer.Option("--output", file_okay=False)],
+) -> None:
+    """Apply explicit owner decisions and retain pending/rejected audit records."""
+    try:
+        summary = apply_community_decisions(review, input_directory, output)
+    except CommunityWorkflowError as error:
+        error_console.print(f"Community decision error: {error}", style="red")
+        raise typer.Exit(code=EXIT_COMMUNITY_ERROR) from error
+    console.print(
+        f"Decisions applied: {summary['decision_count']}; "
+        f"pending: {summary['pending_count']}"
+    )
+    console.print(f"Output: {output}")
+
+
+@app.command("community-build-kb")
+def community_build_kb(
+    input_directory: Annotated[
+        Path,
+        typer.Option("--input", exists=True, file_okay=False, dir_okay=True),
+    ],
+    output: Annotated[Path, typer.Option("--output", file_okay=False)],
+) -> None:
+    """Build a scoped knowledge base from approved human decisions only."""
+    try:
+        summary = build_community_knowledge_base(input_directory, output)
+    except CommunityWorkflowError as error:
+        error_console.print(f"Community knowledge error: {error}", style="red")
+        raise typer.Exit(code=EXIT_COMMUNITY_ERROR) from error
+    console.print(
+        f"Knowledge base created with {summary['approved_knowledge_count']} entries."
+    )
+    console.print(f"Output: {output}")
 
 
 @app.command("acquire-site")

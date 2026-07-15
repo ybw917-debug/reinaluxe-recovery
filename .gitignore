@@ -28,6 +28,7 @@ htmlcov/
 
 # Local runtime data and databases
 data/
+data/community-intelligence/
 *.db
 *.sqlite
 *.sqlite3

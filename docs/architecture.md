@@ -228,3 +228,17 @@ The new one-way boundary is `approved URL source -> safe synchronous GET -> raw
 snapshot + validated BatchManifest`. Import, persistence, and audit are never
 invoked by acquisition. Robots, allowed-host, public-address, redirect, size,
 content-type, delay, and path-confinement policies are enforced independently.
+
+## Stage 009A community intelligence boundary
+
+Community intelligence is a separate offline file workflow:
+
+```text
+local manifest -> normalized source/claim/evidence JSONL -> owner review CSV
+               -> validated decisions -> approved knowledge exports
+```
+
+It extends the public domain contracts but does not use SQLite, acquisition,
+article editing, WordPress, network clients, embeddings, or automatic
+publication. Runtime artifacts remain under ignored
+`data/community-intelligence/` paths.

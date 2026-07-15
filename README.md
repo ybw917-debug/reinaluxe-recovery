@@ -136,5 +136,9 @@ plus a batch manifest. It does not publish, import, or audit automatically. See
 - [Batch manifest contract](docs/batch-import-contract.md)
 - [Batch import workflow](docs/batch-import-workflow.md)
 - [Sprint 2](docs/sprint-2.md)
+- [Community intelligence](docs/community-intelligence.md)
+- [Community evidence policy](docs/community-evidence-policy.md)
+- [Community offline import](docs/community-offline-import.md)
+- [Community review workflow](docs/community-review-workflow.md)
 
 Started by Bowen Yuan.

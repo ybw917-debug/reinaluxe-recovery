@@ -19,6 +19,7 @@ from reinaluxe_recovery.research.query_integrity import (
     build_preview_queries,
     evaluate_query_quality,
     provider_request_preview,
+    research_questions_for_queries,
 )
 
 PREVIEW_OUTPUTS = (
@@ -46,9 +47,15 @@ def preview_queries(
     validation = {
         "schema_version": "1.0",
         "research_id": plan.research_id,
-        "valid": all(record.passed for record in qualities),
+        "valid": all(
+            record.passed and record.retrieval_quality_passed for record in qualities
+        ),
         "query_count": len(queries),
         "passed_query_count": sum(record.passed for record in qualities),
+        "structural_quality_passed_count": sum(record.passed for record in qualities),
+        "retrieval_quality_passed_count": sum(
+            record.retrieval_quality_passed for record in qualities
+        ),
         "provider_calls_made": 0,
         "glm_calls_made": 0,
         "live_search_used": False,
@@ -63,7 +70,13 @@ def preview_queries(
 
 
 def _preview_plan(plan: ResearchPlan, queries: list[Any]) -> ResearchPlan:
-    draft = plan.model_copy(update={"queries": queries, "plan_hash": None})
+    draft = plan.model_copy(
+        update={
+            "questions": research_questions_for_queries(queries),
+            "queries": queries,
+            "plan_hash": None,
+        }
+    )
     return draft.model_copy(
         update={
             "plan_hash": content_hash(
@@ -83,6 +96,7 @@ def _write_preview(
         {
             "query_id": query.query_id,
             "query_family": query.query_family,
+            "research_question": query.clear_research_question,
             "exact_search_query": query.exact_search_query,
             "requested_source_lane": query.requested_source_lane.value,
             "search_domain_filter": query.search_domain_filter,
@@ -95,6 +109,9 @@ def _write_preview(
             "query_generation_inputs": query.query_generation_inputs,
             "query_hash": query.query_hash,
             "passed": quality_by_id[query.query_id].passed,
+            "retrieval_quality_passed": quality_by_id[
+                query.query_id
+            ].retrieval_quality_passed,
         }
         for query in plan.queries
     ]
@@ -155,6 +172,7 @@ def _markdown(
                 f"## Planned call {index}: {query.query_family}",
                 "",
                 f"- Exact query: `{query.exact_search_query}`",
+                f"- Research question: {query.clear_research_question}",
                 f"- Requested lane: `{query.requested_source_lane.value}`",
                 f"- Domain filter: `{query.search_domain_filter or ''}`",
                 f"- Topic anchors: {', '.join(query.query_anchor_terms)}",
@@ -162,7 +180,16 @@ def _markdown(
                 "- Article entities included: "
                 + (", ".join(query.article_entities_included) or "none"),
                 f"- Inclusion rationale: {query.entity_inclusion_rationale}",
-                f"- Query quality: `{'PASS' if quality.passed else 'FAIL'}`",
+                f"- Structural quality: `{'PASS' if quality.passed else 'FAIL'}`",
+                "- Retrieval quality: "
+                f"`{'PASS' if quality.retrieval_quality_passed else 'FAIL'}`",
+                f"- Quoted phrases: {quality.quoted_phrase_count} "
+                f"({quality.quoted_token_ratio:.1%} of query tokens)",
+                "- Retrieval overconstraint risk: "
+                f"`{'yes' if quality.retrieval_overconstraint_risk else 'no'}`",
+                "- Ambiguous acronyms: "
+                + (", ".join(quality.ambiguous_acronyms) or "none"),
+                f"- Natural-language query score: {quality.natural_language_query_score:.2f}",
                 "",
             ]
         )

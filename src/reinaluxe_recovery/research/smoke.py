@@ -49,6 +49,7 @@ from reinaluxe_recovery.research.providers import (
 from reinaluxe_recovery.research.query_integrity import (
     build_preview_queries,
     evaluate_query_quality,
+    research_questions_for_queries,
 )
 from reinaluxe_recovery.research.screening import (
     classify_source_lane_details,
@@ -166,6 +167,7 @@ def _build_smoke_plan(plan: ResearchPlan, requested: list[str]) -> ResearchPlan:
     queries = build_preview_queries(plan, requested, maximum_results=15)
     draft = plan.model_copy(
         update={
+            "questions": research_questions_for_queries(queries),
             "queries": queries,
             "maximum_search_calls": SMOKE_MAX_CALLS,
             "maximum_sources": SMOKE_MAX_RETAINED_SOURCES,
@@ -233,7 +235,9 @@ def _execute_discovery(
         for query in plan.queries[:SMOKE_MAX_CALLS]
     ]
     failed_quality = [
-        (query, quality) for query, quality in failed_quality if not quality.passed
+        (query, quality)
+        for query, quality in failed_quality
+        if not (quality.passed and quality.retrieval_quality_passed)
     ]
     if failed_quality:
         provider_failed = True

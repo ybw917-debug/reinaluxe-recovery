@@ -31,32 +31,40 @@ class QueryFamilyProfile:
     domain_filter: str | None
     exclusions: tuple[str, ...]
     target_section: str
+    research_question: str
 
 
 _PROFILES = {
     "terminology": QueryFamilyProfile(
         key="terminology",
         anchors=(
-            "AAA replica bags",
-            "1:1 quality",
+            "AAA",
+            "1:1",
             "mirror quality",
             "superfake",
-            "grade terminology",
+            "high tier",
+            "quality tier",
         ),
         default_lane=SourceLane.COMMUNITY_REDDIT,
         exact_query=(
-            'site:reddit.com/r/ "AAA replica bags" "mirror quality" "1:1 quality" tiers'
+            "site:reddit.com/r/ replica bags AAA 1:1 mirror quality "
+            "superfake high tier meaning"
         ),
         domain_filter="reddit.com",
         exclusions=("wholesale contact", "brand homepage"),
         target_section="AAA terminology",
+        research_question=(
+            "What terminology, interpretations and disagreements appear in Reddit "
+            "discussions about AAA, 1:1, mirror quality, superfake and replica quality tiers?"
+        ),
     ),
     "psp_qc": QueryFamilyProfile(
         key="psp_qc",
         anchors=(
-            "PSP",
-            "QC",
+            "replica handbag",
             "pre-shipment photos",
+            "QC photos",
+            "PSP",
             "seller photos",
             "received item",
             "lighting",
@@ -64,31 +72,40 @@ _PROFILES = {
         ),
         default_lane=SourceLane.COMMUNITY_FORUMS,
         exact_query=(
-            "replica bag PSP QC photos received item lighting difference "
-            "buyer forum discussion"
+            'replica handbag "pre-shipment photos" PSP QC pictures received item '
+            "lighting difference seller photos buyer forum review"
         ),
         domain_filter=None,
         exclusions=("official brand homepage", "ordinary news index"),
         target_section="PSP and QC limitations",
+        research_question=(
+            "What do public forum and buyer-review discussions report about "
+            "pre-shipment photos, PSP and QC pictures, lighting differences, seller "
+            "photos versus received items, and batch variation?"
+        ),
     ),
     "handmade_provenance": QueryFamilyProfile(
         key="handmade_provenance",
         anchors=(
-            "handmade replica bag claims",
-            "original leather claims",
-            "named tannery claims",
+            "replica handbag",
+            "handmade",
+            "original leather",
+            "tannery claims",
             "leather provenance",
-            "supplier claims",
-            "buyer verification",
+            "verification",
         ),
         default_lane=SourceLane.EXPERT_EDITORIAL,
         exact_query=(
-            '"handmade replica bag claims" "leather provenance" '
-            "tannery supplier verification expert sourcing analysis"
+            'replica handbag handmade "original leather" tannery claims '
+            '"leather provenance" verification expert analysis'
         ),
         domain_filter=None,
         exclusions=("official product listing", "seller contact page"),
         target_section="Handmade and provenance evidence",
+        research_question=(
+            "What expert or editorial analysis evaluates handmade, original-leather, "
+            "tannery, supplier-material and leather-provenance claims for replica handbags?"
+        ),
     ),
 }
 
@@ -129,13 +146,6 @@ def build_preview_queries(
         for policy in plan.source_lane_policies
         if policy.enabled and policy.query_quota > 0
     }
-    question_by_key = {
-        canonical_query_family(
-            question.rationale.removeprefix("query family: ")
-        ): question
-        for question in plan.questions
-        if question.rationale.startswith("query family: ")
-    }
     seed_query = plan.queries[0] if plan.queries else None
     output: list[ResearchQuery] = []
     for key in keys:
@@ -145,7 +155,14 @@ def build_preview_queries(
             raise ResearchConfigurationError(
                 f"request does not enable required lane {profile.default_lane.value}"
             )
-        question = question_by_key.get(key) or _fallback_question(plan, key)
+        question_id = stable_id(
+            "preview_question",
+            {
+                "research_id": plan.research_id,
+                "family": key,
+                "question": profile.research_question,
+            },
+        )
         prohibited = list(_GENERIC_PROHIBITED_ENTITIES)
         output.append(
             ResearchQuery(
@@ -158,7 +175,7 @@ def build_preview_queries(
                         "query": profile.exact_query,
                     },
                 ),
-                research_question_id=question.question_id,
+                research_question_id=question_id,
                 query_family=key,
                 source_lane=profile.default_lane,
                 requested_source_lane=profile.default_lane,
@@ -179,11 +196,11 @@ def build_preview_queries(
                 ),
                 query_generation_inputs={
                     "family_profile": key,
-                    "research_question": question.question,
+                    "research_question": profile.research_question,
                     "lane_template": profile.default_lane.value,
                     "article_entity_policy": "generic_topic_only",
                 },
-                clear_research_question=question.question,
+                clear_research_question=profile.research_question,
                 temporal_range=(
                     seed_query.temporal_range if seed_query else TemporalScope()
                 ),
@@ -200,15 +217,30 @@ def build_preview_queries(
     return output
 
 
+def research_questions_for_queries(
+    queries: list[ResearchQuery],
+) -> list[ResearchQuestion]:
+    """Materialize the exact lane-consistent questions referenced by preview queries."""
+    return [
+        ResearchQuestion(
+            question_id=query.research_question_id,
+            question=query.clear_research_question or query.exact_search_query,
+            rationale=f"retrieval profile: {query.query_family or 'question_specific'}",
+            target_article_section=query.target_article_section,
+            evidence_gap="retrieval-oriented public evidence",
+            priority=index,
+        )
+        for index, query in enumerate(queries, start=1)
+    ]
+
+
 def evaluate_query_quality(
     query: ResearchQuery,
     peers: list[ResearchQuery] | None = None,
 ) -> QueryQualityRecord:
-    """Evaluate whether a query is safe to send to a paid provider."""
+    """Evaluate independent structural and retrieval quality before a paid call."""
     text = query.exact_search_query
-    hits = _phrase_hits(text, query.required_topic_anchors or query.query_anchor_terms)
-    required = query.required_topic_anchors or query.query_anchor_terms
-    missing = [] if hits else list(required)
+    hits, missing = _semantic_anchor_assessment(query)
     prohibited = _phrase_hits(text, query.prohibited_unrelated_entities)
     entity_tokens = sum(len(_tokens(value)) for value in prohibited)
     total_tokens = max(1, len(_tokens(text)))
@@ -219,32 +251,219 @@ def evaluate_query_quality(
         and _query_similarity(text, peer.exact_search_query) >= 0.8
         for peer in (peers or [])
     )
-    failures: list[str] = []
-    if not hits:
-        failures.append("missing_required_topic_anchor")
+    structural_failures: list[str] = []
+    if missing:
+        structural_failures.append("missing_required_topic_anchor")
     if prohibited:
-        failures.append("prohibited_unrelated_entity")
+        structural_failures.append("prohibited_unrelated_entity")
     if contamination > 0.25:
-        failures.append("article_entity_dominance")
+        structural_failures.append("article_entity_dominance")
     if not lane_valid:
-        failures.append("lane_strategy_invalid")
+        structural_failures.append("lane_strategy_invalid")
     if duplicate:
-        failures.append("duplicate_query_risk")
+        structural_failures.append("duplicate_query_risk")
     if len(text) > MAX_QUERY_LENGTH:
-        failures.append("query_too_long")
+        structural_failures.append("query_too_long")
     if not query.clear_research_question:
-        failures.append("research_question_missing")
+        structural_failures.append("research_question_missing")
+    question_consistent = _research_question_lane_consistent(query)
+    quoted_phrases = re.findall(r'"([^"\r\n]+)"', text)
+    quoted_tokens = sum(len(_TOKEN.findall(phrase)) for phrase in quoted_phrases)
+    ordered_tokens = _TOKEN.findall(text.casefold())
+    quoted_ratio = min(1.0, quoted_tokens / max(1, len(ordered_tokens)))
+    overconstraint = len(quoted_phrases) >= 3 or (
+        len(quoted_phrases) >= 2 and quoted_ratio > 0.65
+    )
+    ambiguous = _unmitigated_acronyms(text)
+    acronym_mitigated = not ambiguous
+    natural_score = _natural_language_score(
+        text,
+        question_consistent=question_consistent,
+        overconstraint=overconstraint,
+        ambiguous_acronyms=ambiguous,
+    )
+    retrieval_failures: list[str] = []
+    if not question_consistent:
+        retrieval_failures.append("research_question_lane_contradiction")
+    if missing:
+        retrieval_failures.append("semantic_anchor_groups_incomplete")
+    if overconstraint:
+        retrieval_failures.append("retrieval_overconstraint_risk")
+    if ambiguous:
+        retrieval_failures.append("ambiguous_acronym_unmitigated")
+    if natural_score < 0.6:
+        retrieval_failures.append("natural_language_query_score_low")
     return QueryQualityRecord(
         query_id=query.query_id,
-        passed=not failures,
+        passed=not structural_failures,
         required_anchor_hits=hits,
         missing_required_anchors=missing,
         prohibited_entity_hits=prohibited,
         entity_contamination_score=round(contamination, 4),
         lane_strategy_valid=lane_valid,
         duplicate_query_risk=duplicate,
-        failure_reasons=failures,
+        research_question_lane_consistency=question_consistent,
+        quoted_phrase_count=len(quoted_phrases),
+        quoted_token_ratio=round(quoted_ratio, 4),
+        retrieval_overconstraint_risk=overconstraint,
+        ambiguous_acronyms=ambiguous,
+        ambiguous_acronym_mitigated=acronym_mitigated,
+        natural_language_query_score=natural_score,
+        retrieval_quality_passed=not retrieval_failures,
+        failure_reasons=[*structural_failures, *retrieval_failures],
     )
+
+
+def _semantic_anchor_assessment(
+    query: ResearchQuery,
+) -> tuple[list[str], list[str]]:
+    text = normalize_text(query.exact_search_query).casefold()
+    key = canonical_query_family(query.query_family)
+    if key == "terminology":
+        concepts = {
+            "AAA": _contains_phrase(text, "AAA"),
+            "1:1": "1:1" in text,
+            "mirror quality": _contains_phrase(text, "mirror quality"),
+            "superfake": _contains_phrase(text, "superfake"),
+            "high tier": _contains_phrase(text, "high tier"),
+            "quality tier": _contains_phrase(text, "quality tier"),
+        }
+        hits = [name for name, present in concepts.items() if present]
+        return hits, [] if len(hits) >= 3 else ["three_terminology_concepts"]
+    if key == "psp_qc":
+        groups = {
+            "replica_handbag_context": _contains_any(
+                text, ("replica handbag", "replica bag", "replica purse")
+            ),
+            "pre_shipment_or_qc_photos": _contains_any(
+                text,
+                (
+                    "pre-shipment photo",
+                    "pre-shipment photos",
+                    "pre shipment photo",
+                    "pre shipment photos",
+                    "preshipment photo",
+                    "preshipment photos",
+                    "QC photo",
+                    "QC photos",
+                    "QC picture",
+                    "QC pictures",
+                ),
+            ),
+            "comparison_concept": _contains_any(
+                text,
+                ("received item", "lighting", "seller photo", "batch variation"),
+            ),
+        }
+        return (
+            [name for name, present in groups.items() if present],
+            [name for name, present in groups.items() if not present],
+        )
+    if key == "handmade_provenance":
+        groups = {
+            "replica_handbag_context": _contains_any(
+                text, ("replica handbag", "replica bag", "replica purse")
+            ),
+            "construction_or_material_claim": _contains_any(
+                text,
+                (
+                    "handmade",
+                    "original leather",
+                    "tannery",
+                    "supplier material",
+                    "leather claim",
+                ),
+            ),
+            "verification_or_provenance": _contains_any(
+                text,
+                ("verification", "verify", "provenance", "authentication", "source"),
+            ),
+        }
+        return (
+            [name for name, present in groups.items() if present],
+            [name for name, present in groups.items() if not present],
+        )
+    configured = query.required_topic_anchors or query.query_anchor_terms
+    hits = _phrase_hits(text, configured)
+    return hits, [] if hits else list(configured)
+
+
+def _research_question_lane_consistent(query: ResearchQuery) -> bool:
+    question = normalize_text(query.clear_research_question or "").casefold()
+    if not question:
+        return False
+    lane = query.requested_source_lane
+    if re.search(r"\bnon[- ]community\b", question) and lane in {
+        SourceLane.COMMUNITY_REDDIT,
+        SourceLane.COMMUNITY_FORUMS,
+    }:
+        return False
+    explicit_lanes: set[SourceLane] = set()
+    if "reddit" in question:
+        explicit_lanes.add(SourceLane.COMMUNITY_REDDIT)
+    if _contains_any(question, ("public forum", "buyer-review", "buyer review")):
+        explicit_lanes.add(SourceLane.COMMUNITY_FORUMS)
+    if _contains_any(
+        question, ("expert analysis", "expert or editorial", "editorial analysis")
+    ):
+        explicit_lanes.add(SourceLane.EXPERT_EDITORIAL)
+    if _contains_any(question, ("official source", "official brand")):
+        explicit_lanes.add(SourceLane.PRIMARY_OFFICIAL)
+    if _contains_any(question, ("marketplace listing", "commercial listing")):
+        explicit_lanes.add(SourceLane.COMMERCIAL_OBSERVATION)
+    if _contains_any(question, ("image source", "visual reference")):
+        explicit_lanes.add(SourceLane.VISUAL_IMAGE)
+    return not explicit_lanes or lane in explicit_lanes
+
+
+def _unmitigated_acronyms(value: str) -> list[str]:
+    text = normalize_text(value).casefold()
+    unresolved: list[str] = []
+    if re.search(r"(?<![a-z0-9])psp(?![a-z0-9])", text) and not _contains_any(
+        text,
+        (
+            "pre-shipment photo",
+            "pre-shipment photos",
+            "pre shipment photo",
+            "pre shipment photos",
+            "preshipment photo",
+            "preshipment photos",
+        ),
+    ):
+        unresolved.append("PSP")
+    if re.search(r"(?<![a-z0-9])aaa(?![a-z0-9])", text) and not (
+        "replica" in text and _contains_any(text, ("bag", "quality", "tier"))
+    ):
+        unresolved.append("AAA")
+    if re.search(r"(?<![a-z0-9])qc(?![a-z0-9])", text) and not (
+        "replica" in text
+        and _contains_any(
+            text, ("photo", "photos", "picture", "pictures", "quality control")
+        )
+    ):
+        unresolved.append("QC")
+    return unresolved
+
+
+def _natural_language_score(
+    value: str,
+    *,
+    question_consistent: bool,
+    overconstraint: bool,
+    ambiguous_acronyms: list[str],
+) -> float:
+    token_count = len(_TOKEN.findall(value))
+    score = 1.0
+    if token_count < 6:
+        score -= 0.3
+    elif token_count > 30:
+        score -= 0.2
+    if not question_consistent:
+        score -= 0.45
+    if overconstraint:
+        score -= 0.35
+    score -= min(0.4, len(ambiguous_acronyms) * 0.25)
+    return round(max(0.0, min(1.0, score)), 4)
 
 
 def topic_relevance_hits(query_family: str | None, value: str) -> list[str]:
@@ -279,18 +498,6 @@ def topic_relevance_hits(query_family: str | None, value: str) -> list[str]:
         ),
     }[key]
     return _phrase_hits(value, lexical)
-
-
-def _fallback_question(plan: ResearchPlan, key: str) -> ResearchQuestion:
-    profile = _PROFILES[key]
-    return ResearchQuestion(
-        question_id=stable_id(
-            "preview_question", {"research": plan.research_id, "key": key}
-        ),
-        question=f"What public evidence addresses {profile.target_section}?",
-        rationale=f"query family: {key}",
-        target_article_section=profile.target_section,
-    )
 
 
 def _lane_strategy_valid(query: ResearchQuery) -> bool:
@@ -329,6 +536,21 @@ def _phrase_hits(value: str, phrases: tuple[str, ...] | list[str]) -> list[str]:
         if re.search(pattern, normalized):
             hits.append(phrase)
     return hits
+
+
+def _contains_phrase(value: str, phrase: str) -> bool:
+    return bool(
+        re.search(
+            r"(?<![a-z0-9])"
+            + re.escape(phrase.casefold()).replace(r"\ ", r"\s+")
+            + r"(?![a-z0-9])",
+            value.casefold(),
+        )
+    )
+
+
+def _contains_any(value: str, phrases: tuple[str, ...]) -> bool:
+    return any(_contains_phrase(value, phrase) for phrase in phrases)
 
 
 def _tokens(value: str) -> set[str]:

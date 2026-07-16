@@ -17,4 +17,6 @@ Every provider result remains linked to its provider identifier, query, family, 
 
 Run the [query-integrity preview](research-query-integrity.md) first. The smoke call register preserves the exact search query, requested lane, domain filter, maximum results, anchors, and exclusions. Query-quality failures make no provider call. Results record requested and classified lanes separately, and family-specific lexical relevance is required before retention.
 
+Paid discovery requires both structural query quality and retrieval quality. A lane-contradictory research question, over-quoted query, unmitigated ambiguous acronym, incomplete semantic anchor groups, or low natural-language score stops before the provider call.
+
 The final recommendation is one of `full_run_recommended`, `full_run_recommended_with_adjustments`, `provider_coverage_insufficient`, `configuration_failed`, or `analysis_failed`. Runtime output under `data/research/smoke/` is ignored by Git.

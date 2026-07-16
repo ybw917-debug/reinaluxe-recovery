@@ -151,7 +151,7 @@ def discover_sources(
     executed: list[str] = []
     for query in plan.queries[: plan.maximum_search_calls]:
         quality = evaluate_query_quality(query, plan.queries)
-        if not quality.passed:
+        if not (quality.passed and quality.retrieval_quality_passed):
             exclusions.append(
                 {
                     "query_id": query.query_id,

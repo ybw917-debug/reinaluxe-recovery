@@ -193,7 +193,7 @@ uv run reinaluxe-recovery research-preview-queries `
   --output data/research/query-previews/aaa-pillar-001-smoke-v2
 ```
 
-Builds a deterministic, lane-aware paid-request preview. It makes zero provider and GLM calls. Queries that lack topic anchors, contain prohibited page entities, lack a lane strategy, duplicate another query, exceed the length limit, or lack a clear research question fail validation and cannot be sent by discovery.
+Builds a deterministic, lane-aware paid-request preview. It makes zero provider and GLM calls. Both structural and retrieval quality must pass before discovery can send a paid request. Retrieval checks include research-question/lane consistency, grouped topic concepts, excessive exact-phrase quoting, acronym disambiguation, and natural-language query quality; entity-contamination controls remain unchanged.
 
 ## `audit-articles`
 

@@ -555,6 +555,7 @@ class ResearchQuery(DomainModel):
                 "target_article_section": data.get("target_article_section"),
                 "article_entities_included": data.get("article_entities_included", []),
                 "query_generation_inputs": data.get("query_generation_inputs", {}),
+                "clear_research_question": data.get("clear_research_question"),
             }
         )
         supplied = data.get("query_hash")
@@ -574,6 +575,14 @@ class QueryQualityRecord(DomainModel):
     entity_contamination_score: float = Field(ge=0, le=1)
     lane_strategy_valid: bool
     duplicate_query_risk: bool
+    research_question_lane_consistency: bool
+    quoted_phrase_count: int = Field(ge=0)
+    quoted_token_ratio: float = Field(ge=0, le=1)
+    retrieval_overconstraint_risk: bool
+    ambiguous_acronyms: list[str] = Field(default_factory=list)
+    ambiguous_acronym_mitigated: bool
+    natural_language_query_score: float = Field(ge=0, le=1)
+    retrieval_quality_passed: bool
     failure_reasons: list[str] = Field(default_factory=list)
 
 

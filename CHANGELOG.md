@@ -1,5 +1,11 @@
 # Changelog
 
+## Stage 009C-Core-1B.1B - 2026-07-16
+
+- Rephrased the three AAA preview queries for natural Reddit, public-forum, and expert retrieval, including explicit PSP expansion and limited exact-phrase use.
+- Added research-question/lane consistency, quote-overconstraint, acronym-disambiguation, semantic anchor-group, natural-language score, and retrieval-quality contracts.
+- Required both structural and retrieval quality before a paid provider call while preserving the existing entity-contamination gate.
+
 ## Stage 009C-Core-1B.1A - 2026-07-16
 
 - Added offline exact-query previews, deterministic lane templates, entity-contamination controls, query hashes, and paid-call quality gates.

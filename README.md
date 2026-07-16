@@ -139,6 +139,8 @@ Stage 009C-Core-1B adds [bounded research smoke testing](docs/research-smoke-tes
 
 Stage 009C-Core-1B.1A adds an offline [query-integrity preview](docs/research-query-integrity.md), independent requested/classified source lanes, topic-relevance gates, organization clustering, and strict resolved-image qualification.
 
+Stage 009C-Core-1B.1B refines the AAA defaults for natural retrieval and adds semantic query-quality validation for lane-consistent questions, limited quoting, grouped concepts, and acronym disambiguation.
+
 - [Architecture](docs/architecture.md)
 - [Roadmap](docs/roadmap.md)
 - [Sprint 1](docs/sprint-1.md)

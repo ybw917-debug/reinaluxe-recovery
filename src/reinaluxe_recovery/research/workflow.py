@@ -27,6 +27,7 @@ from reinaluxe_recovery.research.database import (
     build_research_snapshot,
 )
 from reinaluxe_recovery.research.planning import build_research_plan
+from reinaluxe_recovery.research.preview import preview_queries as run_query_preview
 from reinaluxe_recovery.research.production import export_content_production
 from reinaluxe_recovery.research.providers import (
     ResearchProviderRegistry,
@@ -196,6 +197,15 @@ def research_smoke(
         provider=provider,
         analyzer=analyzer,
     )
+
+
+def research_preview_queries(
+    request_path: Path,
+    query_families: list[str],
+    output: Path,
+) -> dict[str, object]:
+    """Render deterministic exact queries without creating or calling a provider."""
+    return run_query_preview(request_path, query_families, output)
 
 
 def research_build_asset_manifest(

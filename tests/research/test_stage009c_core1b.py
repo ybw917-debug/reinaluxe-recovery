@@ -136,7 +136,8 @@ class SmokeProvider(ResearchSearchProvider):
                     "url": url,
                     "title": f"Scoped provider record {call}-{index}.",
                     "snippet": (
-                        "Repeated market observations show terminology varies by seller. "
+                        "AAA replica bag terminology, PSP QC lighting, and handmade leather "
+                        "provenance vary across repeated market observations. "
                         f"This provider record belongs to lane {query.source_lane.value}."
                     ),
                     "published_at": "2026-07-01T00:00:00Z",
@@ -313,7 +314,7 @@ def test_reddit_post_normalization_and_rejection() -> None:
                 "?utm_source=test"
             ),
             "title": "Post by u/private-name",
-            "snippet": "u/private-name compared examples.",
+            "snippet": "u/private-name compared AAA replica bags.",
         },
         policies,
     )
@@ -362,12 +363,15 @@ def test_strict_lane_signals_reclassify_official_brand_domains() -> None:
     )
     assert reason is None and official is not None
     assert official.source_lane is SourceLane.PRIMARY_OFFICIAL
-    mismatched, mismatch_reason = screen_source_candidate(
+    classified, mismatch_reason = screen_source_candidate(
         query,
         {"url": "https://news.example.test/general-article"},
         policies,
     )
-    assert mismatched is None and mismatch_reason == "source_lane_mismatch"
+    assert mismatch_reason is None and classified is not None
+    assert classified.requested_source_lane is SourceLane.COMMUNITY_FORUMS
+    assert classified.classified_source_lane is SourceLane.EXPERT_EDITORIAL
+    assert classified.classification_override_status == "classified_lane_overridden"
 
 
 class DuplicateProvider(SmokeProvider):
@@ -376,27 +380,27 @@ class DuplicateProvider(SmokeProvider):
         return [
             {
                 "provider_result_id": "one",
-                "url": "https://forum.example.test/thread/a?utm_source=x",
+                "url": "https://reddit.com/r/example/comments/abc111/a/?utm_source=x",
                 "title": "Same title",
-                "snippet": "Same returned content",
+                "snippet": "Same AAA replica quality tier content",
             },
             {
                 "provider_result_id": "two",
-                "url": "https://forum.example.test/thread/a",
+                "url": "https://reddit.com/r/example/comments/abc111/a/",
                 "title": "Same title",
-                "snippet": "Same returned content",
+                "snippet": "Same AAA replica quality tier content",
             },
             {
                 "provider_result_id": "three",
-                "url": "https://forum.example.test/thread/b",
+                "url": "https://reddit.com/r/example/comments/abc222/b/",
                 "title": "Same title",
-                "snippet": "Same returned content",
+                "snippet": "Same AAA replica quality tier content",
             },
             {
                 "provider_result_id": "four",
-                "url": "https://forum.example.test/thread/c",
+                "url": "https://reddit.com/r/example/comments/abc333/c/",
                 "title": "Different title",
-                "snippet": "Different returned content",
+                "snippet": "Different AAA replica quality tier content",
             },
         ]
 

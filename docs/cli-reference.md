@@ -184,6 +184,17 @@ is reported distinctly from a database failure.
 
 Expected errors are written to stderr without raw stack traces.
 
+## `research-preview-queries`
+
+```powershell
+uv run reinaluxe-recovery research-preview-queries `
+  --request docs/examples/aaa-pillar-001.yaml `
+  --query-families terminology,psp_qc,handmade_provenance `
+  --output data/research/query-previews/aaa-pillar-001-smoke-v2
+```
+
+Builds a deterministic, lane-aware paid-request preview. It makes zero provider and GLM calls. Queries that lack topic anchors, contain prohibited page entities, lack a lane strategy, duplicate another query, exceed the length limit, or lack a clear research question fail validation and cannot be sent by discovery.
+
 ## `audit-articles`
 
 ```powershell

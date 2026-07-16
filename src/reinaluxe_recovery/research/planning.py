@@ -29,6 +29,7 @@ from reinaluxe_recovery.research.contracts import (
     SourceLane,
 )
 from reinaluxe_recovery.research.errors import ResearchArtifactError
+from reinaluxe_recovery.research.query_integrity import required_topic_anchors
 
 _SENTENCE = re.compile(r"(?<=[.!?])\s+")
 _FIRST_HAND = re.compile(
@@ -42,7 +43,7 @@ _EVIDENCE_PENDING = re.compile(
 )
 
 _LANE_TERMS = {
-    SourceLane.COMMUNITY_REDDIT: "site:reddit.com",
+    SourceLane.COMMUNITY_REDDIT: "site:reddit.com/r/",
     SourceLane.COMMUNITY_FORUMS: "forum OR community discussion",
     SourceLane.PRIMARY_OFFICIAL: "official primary source",
     SourceLane.EXPERT_EDITORIAL: "expert analysis methodology",
@@ -314,7 +315,15 @@ def _allocate_queries(
                 continue
             question = eligible_questions[question_number % len(eligible_questions)]
             language = languages[question_number % len(languages)]
-            base_terms = " ".join([*request.brand_scope, *request.model_scope]).strip()
+            family = (
+                question.rationale.removeprefix("query family: ")
+                if question.rationale.startswith("query family: ")
+                else None
+            )
+            included_entities, inclusion_rationale = _included_query_entities(
+                request, family, question.question
+            )
+            base_terms = " ".join(included_entities)
             lane_term = _LANE_TERMS[policy.source_lane]
             exclusions = sorted(set(request.excluded_subjects))
             exclusion_text = " ".join(f'-"{item}"' for item in exclusions)
@@ -324,6 +333,17 @@ def _allocate_queries(
             search_text = normalize_text(
                 f"{lane_term} {base_terms} {question.question} "
                 f"{exclusion_text}{language_text}"
+            )
+            anchors = required_topic_anchors(family) or _question_anchors(
+                question.question
+            )
+            prohibited_entities = sorted(
+                {
+                    *request.brand_scope,
+                    *request.model_scope,
+                }
+                - set(included_entities)
+                - {"cross-brand"}
             )
             seed = {
                 "question": question.question_id,
@@ -335,15 +355,31 @@ def _allocate_queries(
                 ResearchQuery(
                     query_id=stable_id("query", seed),
                     research_question_id=question.question_id,
-                    query_family=(
-                        question.rationale.removeprefix("query family: ")
-                        if question.rationale.startswith("query family: ")
+                    query_family=family,
+                    source_lane=policy.source_lane,
+                    requested_source_lane=policy.source_lane,
+                    search_text=search_text,
+                    exact_search_query=search_text,
+                    search_domain_filter=(
+                        "reddit.com"
+                        if policy.source_lane is SourceLane.COMMUNITY_REDDIT
                         else None
                     ),
-                    source_lane=policy.source_lane,
-                    search_text=search_text,
-                    positive_terms=[*request.brand_scope, *request.model_scope],
+                    positive_terms=anchors,
                     exclusion_terms=exclusions,
+                    query_anchor_terms=anchors,
+                    query_exclusion_terms=exclusions,
+                    required_topic_anchors=anchors,
+                    prohibited_unrelated_entities=prohibited_entities,
+                    article_entities_included=included_entities,
+                    entity_inclusion_rationale=inclusion_rationale,
+                    query_generation_inputs={
+                        "research_question": question.question,
+                        "query_family": family or "question_specific",
+                        "requested_lane": policy.source_lane.value,
+                        "language": language,
+                    },
+                    clear_research_question=question.question,
                     temporal_range=request.temporal_scope,
                     brand_scope=request.brand_scope,
                     model_scope=request.model_scope,
@@ -366,6 +402,53 @@ def _allocate_queries(
             "research plan did not retain configured source diversity"
         )
     return output
+
+
+def _included_query_entities(
+    request: ResearchRequest,
+    family: str | None,
+    question: str,
+) -> tuple[list[str], str]:
+    scope = [*request.brand_scope, *request.model_scope]
+    normalized = f"{family or ''} {question}".casefold()
+    model_specific = any(
+        marker in normalized
+        for marker in ("same-model", "same model", "model-specific", "specific model")
+    )
+    if not model_specific:
+        return (
+            [],
+            "Generic research query excludes article brand, model, image, filename, and product-ID entities.",
+        )
+    included = [value for value in scope if value.casefold() != "cross-brand"]
+    return (
+        included,
+        "Model-specific research question explicitly requires these entities.",
+    )
+
+
+def _question_anchors(question: str) -> list[str]:
+    stopwords = {
+        "about",
+        "across",
+        "and",
+        "does",
+        "evidence",
+        "from",
+        "have",
+        "limits",
+        "public",
+        "sources",
+        "that",
+        "the",
+        "what",
+        "which",
+    }
+    return [
+        token
+        for token in re.findall(r"[A-Za-z0-9:.-]+", question)
+        if len(token) >= 3 and token.casefold() not in stopwords
+    ][:8]
 
 
 def _read_article_path(path: Path) -> dict[str, Any]:

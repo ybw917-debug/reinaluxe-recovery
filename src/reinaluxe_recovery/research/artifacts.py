@@ -44,6 +44,7 @@ STANDARD_OUTPUTS = (
     "contradiction-register.csv",
     "insufficient-evidence.csv",
     "image-candidates.csv",
+    "visual-page-candidates.csv",
     "image-evidence-register.csv",
     "topic-knowledge-opportunities.csv",
     "article-content-opportunities.csv",
@@ -97,9 +98,21 @@ def write_plan(plan: ResearchPlan, output: Path) -> None:
             "research_question_id",
             "query_family",
             "source_lane",
+            "requested_source_lane",
             "search_text",
+            "exact_search_query",
+            "search_domain_filter",
+            "maximum_results",
             "positive_terms",
             "exclusion_terms",
+            "query_anchor_terms",
+            "query_exclusion_terms",
+            "required_topic_anchors",
+            "prohibited_unrelated_entities",
+            "article_entities_included",
+            "entity_inclusion_rationale",
+            "query_generation_inputs",
+            "query_hash",
             "temporal_range",
             "brand_scope",
             "model_scope",
@@ -134,6 +147,11 @@ def write_run(run: SearchRun, plan: ResearchPlan, output: Path) -> None:
         output / "image-candidates.csv",
         _fields(run.image_candidates),
         [item.model_dump(mode="json") for item in run.image_candidates],
+    )
+    write_csv(
+        output / "visual-page-candidates.csv",
+        _fields(run.visual_page_candidates),
+        [item.model_dump(mode="json") for item in run.visual_page_candidates],
     )
 
 

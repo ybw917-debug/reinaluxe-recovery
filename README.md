@@ -137,6 +137,8 @@ Stage 009C-Core-1A adds [content production modes](docs/research-content-product
 
 Stage 009C-Core-1B adds [bounded research smoke testing](docs/research-smoke-testing.md), first-class [visual candidates](docs/research-visual-candidates.md), and offline [asset manifests](docs/research-asset-manifests.md) for future model pages.
 
+Stage 009C-Core-1B.1A adds an offline [query-integrity preview](docs/research-query-integrity.md), independent requested/classified source lanes, topic-relevance gates, organization clustering, and strict resolved-image qualification.
+
 - [Architecture](docs/architecture.md)
 - [Roadmap](docs/roadmap.md)
 - [Sprint 1](docs/sprint-1.md)

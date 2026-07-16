@@ -80,13 +80,15 @@ class ZhipuWebSearchProvider(ResearchSearchProvider):
     def execute_query(self, query: ResearchQuery) -> Any:
         self.validate_configuration()
         payload: dict[str, Any] = {
-            "search_query": query.search_text[:70],
+            "search_query": query.exact_search_query,
             "search_engine": self._search_engine,
             "search_intent": False,
-            "count": self._requested_result_count,
+            "count": min(self._requested_result_count, query.maximum_results),
             "search_recency_filter": "noLimit",
             "content_size": "high",
         }
+        if query.search_domain_filter:
+            payload["search_domain_filter"] = query.search_domain_filter
         client = self._client or httpx.Client(timeout=self._timeout_seconds)
         owns_client = self._client is None
         try:

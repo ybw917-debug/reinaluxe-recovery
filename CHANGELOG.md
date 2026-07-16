@@ -1,5 +1,11 @@
 # Changelog
 
+## Stage 009C-Core-1B.1A - 2026-07-16
+
+- Added offline exact-query previews, deterministic lane templates, entity-contamination controls, query hashes, and paid-call quality gates.
+- Separated requested and classified source lanes, added family-specific relevance screening, and clustered regional official domains by organization.
+- Split resolved image candidates from unresolved visual pages and added an offline audit for previously captured smoke artifacts without claim generation.
+
 ## Stage 009C-Core-1B - 2026-07-16
 
 - Added the hard-limited `research-smoke` workflow with provider-call, raw-result, source-integrity, GLM-validation, visual-candidate, synthesis, and recommendation outputs.

@@ -158,7 +158,10 @@ class SyntheticProvider(ResearchSearchProvider):
         result = {
             "url": f"https://{host}{path}?utm_source=test",
             "title": f"Scoped public observation {query.query_id}",
-            "snippet": "I compared this method and it does not always give identical quality.",
+            "snippet": (
+                "AAA replica quality tiers, PSP QC lighting, and handmade leather provenance "
+                "were compared; the method does not always give identical quality."
+            ),
             "images": [
                 {
                     "url": "https://images.example.test/shared-comparison.jpg",
@@ -259,7 +262,8 @@ def test_zhipu_request_uses_documented_bounded_payload(tmp_path: Path) -> None:
     )
     query = build_research_plan(_request(tmp_path, provider="zhipu")).queries[0]
     provider.execute_query(query)
-    assert len(str(captured["search_query"])) <= 70
+    assert captured["search_query"] == query.exact_search_query
+    assert captured["search_domain_filter"] == "reddit.com"
     assert captured["search_engine"] == "search_std"
     assert captured["search_intent"] is False
     assert captured["search_recency_filter"] == "noLimit"

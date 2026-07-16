@@ -36,6 +36,7 @@ from reinaluxe_recovery.research.contracts import (
     SmokeRecommendation,
     SourceCandidate,
     SourceLane,
+    VisualPageCandidate,
 )
 from reinaluxe_recovery.research.errors import ResearchConfigurationError, ResearchError
 from reinaluxe_recovery.research.planning import build_research_plan
@@ -45,10 +46,15 @@ from reinaluxe_recovery.research.providers import (
     ZhipuGLMSourceAnalyzer,
     default_provider_registry,
 )
+from reinaluxe_recovery.research.query_integrity import (
+    build_preview_queries,
+    evaluate_query_quality,
+)
 from reinaluxe_recovery.research.screening import (
+    classify_source_lane_details,
     normalize_source_url,
+    qualify_visual_candidate,
     raw_images,
-    screen_image_candidate,
     screen_source_candidate,
 )
 
@@ -70,6 +76,7 @@ SMOKE_OUTPUTS = (
     "contradiction-register.csv",
     "insufficient-evidence-register.csv",
     "image-source-candidates.csv",
+    "visual-page-candidates.csv",
     "assertive-narrative-register.csv",
     "publication-wording-options.csv",
     "full-run-recommendation.md",
@@ -156,72 +163,7 @@ def research_smoke(
 
 
 def _build_smoke_plan(plan: ResearchPlan, requested: list[str]) -> ResearchPlan:
-    families = [item.strip() for item in requested if item.strip()]
-    if not 1 <= len(families) <= SMOKE_MAX_CALLS or len(set(families)) != len(families):
-        raise ResearchConfigurationError(
-            "research-smoke requires one to three unique query families"
-        )
-    family_questions = {
-        item.rationale.removeprefix("query family: "): item
-        for item in plan.questions
-        if item.rationale.startswith("query family: ")
-    }
-    matches = [_match_family(value, family_questions) for value in families]
-    policies = sorted(
-        (
-            item
-            for item in plan.source_lane_policies
-            if item.enabled and item.query_quota > 0
-        ),
-        key=lambda item: (item.priority, item.source_lane.value),
-    )
-    if len(policies) < len(matches):
-        raise ResearchConfigurationError(
-            "the request does not enable enough source lanes for the smoke families"
-        )
-    queries: list[ResearchQuery] = []
-    for index, (family, question) in enumerate(matches):
-        lane = policies[index].source_lane
-        brand_model = " ".join(
-            [
-                *next((item.brand_scope for item in plan.queries), []),
-                *next((item.model_scope for item in plan.queries), []),
-            ]
-        )
-        search_text = normalize_text(
-            f"{_LANE_TERMS[lane]} {brand_model} {question.question}"
-        )
-        queries.append(
-            ResearchQuery(
-                query_id=stable_id(
-                    "smoke_query",
-                    {
-                        "research_id": plan.research_id,
-                        "family": family,
-                        "lane": lane,
-                    },
-                ),
-                research_question_id=question.question_id,
-                query_family=family,
-                source_lane=lane,
-                search_text=search_text,
-                positive_terms=next((item.positive_terms for item in plan.queries), []),
-                exclusion_terms=next(
-                    (item.exclusion_terms for item in plan.queries), []
-                ),
-                temporal_range=next(
-                    (item.temporal_range for item in plan.queries),
-                ),
-                brand_scope=next((item.brand_scope for item in plan.queries), []),
-                model_scope=next((item.model_scope for item in plan.queries), []),
-                target_article_section=question.target_article_section,
-                expected_evidence_type=_EVIDENCE_TYPE[lane],
-                stopping_criteria=(
-                    "one provider call; retain no more than fifteen normalized results"
-                ),
-                language=next((item.language for item in plan.queries), "en"),
-            )
-        )
+    queries = build_preview_queries(plan, requested, maximum_results=15)
     draft = plan.model_copy(
         update={
             "queries": queries,
@@ -276,6 +218,7 @@ def _execute_discovery(
     duplicate_rows: list[dict[str, Any]] = []
     sources: list[SourceCandidate] = []
     images: list[ImageCandidate] = []
+    visual_pages: list[VisualPageCandidate] = []
     seen_urls: dict[str, str] = {}
     seen_content: dict[str, str] = {}
     seen_images: set[str] = set()
@@ -285,23 +228,46 @@ def _execute_discovery(
     provider_failed = False
     configuration_failed = False
     policy_by_lane = {item.source_lane: item for item in plan.source_lane_policies}
-    try:
-        provider.validate_configuration()
-    except ResearchConfigurationError as error:
-        configuration_failed = True
-        call_rows.append(
-            {
-                "call_index": 0,
-                "status": "configuration_failed",
-                "error": _safe_error(error),
-                "retry_count": 0,
-            }
-        )
-    if not configuration_failed:
+    failed_quality = [
+        (query, evaluate_query_quality(query, plan.queries))
+        for query in plan.queries[:SMOKE_MAX_CALLS]
+    ]
+    failed_quality = [
+        (query, quality) for query, quality in failed_quality if not quality.passed
+    ]
+    if failed_quality:
+        provider_failed = True
+        for call_index, (query, quality) in enumerate(failed_quality, start=1):
+            call_rows.append(
+                {
+                    "call_index": call_index,
+                    **_provider_call_query_fields(query),
+                    "returned_raw_results": 0,
+                    "processed_results": 0,
+                    "status": "query_quality_failed",
+                    "error": "; ".join(quality.failure_reasons),
+                    "retry_count": 0,
+                }
+            )
+    else:
+        try:
+            provider.validate_configuration()
+        except ResearchConfigurationError as error:
+            configuration_failed = True
+            call_rows.append(
+                {
+                    "call_index": 0,
+                    "status": "configuration_failed",
+                    "error": _safe_error(error),
+                    "retry_count": 0,
+                }
+            )
+    if not configuration_failed and not failed_quality:
         for call_index, query in enumerate(plan.queries[:SMOKE_MAX_CALLS], start=1):
             retrieved_at = datetime.now(UTC).isoformat()
             requested_limit = min(
                 SMOKE_MAX_RESULTS_PER_CALL,
+                query.maximum_results,
                 int(provider.capabilities().get("requested_result_count", 15)),
             )
             try:
@@ -313,9 +279,7 @@ def _execute_discovery(
                 call_rows.append(
                     {
                         "call_index": call_index,
-                        "query_id": query.query_id,
-                        "query_family": query.query_family,
-                        "source_lane": query.source_lane.value,
+                        **_provider_call_query_fields(query),
                         "requested_result_limit": requested_limit,
                         "returned_raw_results": 0,
                         "processed_results": 0,
@@ -332,9 +296,7 @@ def _execute_discovery(
             call_rows.append(
                 {
                     "call_index": call_index,
-                    "query_id": query.query_id,
-                    "query_family": query.query_family,
-                    "source_lane": query.source_lane.value,
+                    **_provider_call_query_fields(query),
                     "requested_result_limit": requested_limit,
                     "returned_raw_results": raw_count,
                     "processed_results": len(selected_results),
@@ -403,33 +365,28 @@ def _execute_discovery(
                         for raw_image in visual_inputs:
                             if len(images) >= plan.maximum_image_candidates:
                                 break
-                            image = screen_image_candidate(candidate, raw_image)
-                            if image is None:
-                                continue
-                            image_key = str(
-                                image.normalized_image_url or image.image_id
+                            image, visual_page = qualify_visual_candidate(
+                                candidate, raw_image
                             )
-                            if image_key in seen_images:
-                                continue
-                            seen_images.add(image_key)
-                            images.append(
-                                image.model_copy(
-                                    update={
-                                        "brand": (
-                                            query.brand_scope[0]
-                                            if query.brand_scope
-                                            else None
-                                        ),
-                                        "model": (
-                                            query.model_scope[0]
-                                            if query.model_scope
-                                            else None
-                                        ),
-                                        "target_topic": query.query_family,
-                                        "proposed_article_section": query.target_article_section,
-                                    }
+                            if image is not None:
+                                image_key = str(
+                                    image.normalized_image_url or image.image_locator
                                 )
-                            )
+                                if image_key in seen_images:
+                                    continue
+                                seen_images.add(image_key)
+                                images.append(
+                                    image.model_copy(
+                                        update={
+                                            "brand": None,
+                                            "model": None,
+                                            "target_topic": query.query_family,
+                                            "proposed_article_section": query.target_article_section,
+                                        }
+                                    )
+                                )
+                            elif visual_page is not None:
+                                visual_pages.append(visual_page)
                 if status == "excluded":
                     exclusion_rows.append(
                         {
@@ -439,6 +396,13 @@ def _execute_discovery(
                             "reason": reason or "invalid_source",
                         }
                     )
+                classification = None
+                try:
+                    classification = classify_source_lane_details(
+                        normalize_source_url(raw_url), query.brand_scope
+                    )
+                except ValueError:
+                    pass
                 result_rows.append(
                     {
                         "provider_result_id": raw["provider_result_id"],
@@ -452,10 +416,37 @@ def _execute_discovery(
                         or [],
                         "published_at": raw.get("published_at"),
                         "retrieved_at": raw.get("retrieved_at"),
-                        "source_lane": (
-                            candidate.source_lane.value
+                        "requested_source_lane": query.requested_source_lane.value,
+                        "classified_source_lane": (
+                            candidate.classified_source_lane.value
                             if candidate is not None
-                            else query.source_lane.value
+                            else classification.lane.value
+                            if classification
+                            else ""
+                        ),
+                        "classification_rule": (
+                            candidate.classification_rule
+                            if candidate is not None
+                            else classification.rule
+                            if classification
+                            else "invalid_url"
+                        ),
+                        "classification_confidence": (
+                            candidate.classification_confidence
+                            if candidate is not None
+                            else classification.confidence
+                            if classification
+                            else 0
+                        ),
+                        "classification_override_status": (
+                            candidate.classification_override_status
+                            if candidate is not None
+                            else (
+                                "requested_lane_confirmed"
+                                if classification
+                                and classification.lane is query.requested_source_lane
+                                else "classified_lane_overridden"
+                            )
                         ),
                         "provider_access_classification": raw.get(
                             "provider_access_classification",
@@ -474,8 +465,12 @@ def _execute_discovery(
         "plan_hash": plan.plan_hash,
         "provider": provider.provider_name,
         "query_ids": [row["query_id"] for row in call_rows if row.get("query_id")],
+        "queries": plan.queries,
         "source_candidates": sorted(sources, key=lambda item: item.source_id),
         "image_candidates": sorted(images, key=lambda item: item.image_id),
+        "visual_page_candidates": sorted(
+            visual_pages, key=lambda item: item.visual_page_candidate_id
+        ),
         "exclusions": exclusion_rows,
         "usage": {
             **dict(provider.report_usage()),
@@ -687,7 +682,12 @@ def _write_smoke_csvs(
             "call_index",
             "query_id",
             "query_family",
-            "source_lane",
+            "exact_search_query",
+            "requested_source_lane",
+            "search_domain_filter",
+            "maximum_results",
+            "query_anchor_terms",
+            "query_exclusion_terms",
             "requested_result_limit",
             "returned_raw_results",
             "processed_results",
@@ -709,7 +709,11 @@ def _write_smoke_csvs(
             "media_fields",
             "published_at",
             "retrieved_at",
-            "source_lane",
+            "requested_source_lane",
+            "classified_source_lane",
+            "classification_rule",
+            "classification_confidence",
+            "classification_override_status",
             "provider_access_classification",
             "status",
             "source_id",
@@ -776,6 +780,11 @@ def _write_smoke_csvs(
         output / "image-source-candidates.csv",
         list(ImageCandidate.model_fields),
         [item.model_dump(mode="json") for item in run.image_candidates],
+    )
+    write_csv(
+        output / "visual-page-candidates.csv",
+        list(VisualPageCandidate.model_fields),
+        [item.model_dump(mode="json") for item in run.visual_page_candidates],
     )
     write_csv(
         output / "assertive-narrative-register.csv",
@@ -867,6 +876,20 @@ def _content_key(candidate: SourceCandidate) -> str:
         " | ".join(item for item in (candidate.title, candidate.snippet) if item)
     ).casefold()
     return content_hash(value) if value else ""
+
+
+def _provider_call_query_fields(query: ResearchQuery) -> dict[str, Any]:
+    return {
+        "query_id": query.query_id,
+        "query_family": query.query_family,
+        "exact_search_query": query.exact_search_query,
+        "requested_source_lane": query.requested_source_lane.value,
+        "search_domain_filter": query.search_domain_filter or "",
+        "maximum_results": query.maximum_results,
+        "query_anchor_terms": query.query_anchor_terms,
+        "query_exclusion_terms": query.query_exclusion_terms,
+        "requested_result_limit": query.maximum_results,
+    }
 
 
 def _raw_provider_count(response: Any) -> int:

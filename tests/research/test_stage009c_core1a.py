@@ -149,7 +149,8 @@ class MultiSourceProvider(ResearchSearchProvider):
                 "url": f"https://{host}{path}",
                 "title": f"Visible construction assessment {query.source_lane.value}.",
                 "snippet": (
-                    "Reviewed examples show controlled shape and cleaner visible construction."
+                    "AAA replica quality tiers, PSP QC lighting, and handmade leather provenance "
+                    "show controlled shape and cleaner visible construction."
                 ),
                 "images": [
                     {"url": f"https://images.example.test/{query.query_id}.jpg"}

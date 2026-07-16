@@ -27,6 +27,7 @@ from reinaluxe_recovery.research.contracts import (
     OwnerVoiceEvidence,
     PermissionStatus,
     PublicationIntensity,
+    QueryQualityRecord,
     ResearchMode,
     ResearchPlan,
     ResearchQuery,
@@ -41,6 +42,7 @@ from reinaluxe_recovery.research.contracts import (
     SourceLanePolicy,
     TemporalScope,
     TopicResearchRequest,
+    VisualPageCandidate,
 )
 from reinaluxe_recovery.research.errors import ResearchError
 from reinaluxe_recovery.research.providers import (
@@ -77,6 +79,7 @@ __all__ = [
     "OwnerVoiceEvidence",
     "PermissionStatus",
     "PublicationIntensity",
+    "QueryQualityRecord",
     "ResearchError",
     "ResearchPlan",
     "ResearchMode",
@@ -94,6 +97,7 @@ __all__ = [
     "SourceLanePolicy",
     "TemporalScope",
     "TopicResearchRequest",
+    "VisualPageCandidate",
     "NewPageAssetRecord",
     "VisualAnalysisProvider",
     "ZhipuGLMSourceAnalyzer",

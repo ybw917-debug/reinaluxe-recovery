@@ -99,6 +99,9 @@ from reinaluxe_recovery.research.workflow import (
     research_plan as run_research_plan,
 )
 from reinaluxe_recovery.research.workflow import (
+    research_preview_queries as run_research_preview_queries,
+)
+from reinaluxe_recovery.research.workflow import (
     research_refresh as run_research_refresh,
 )
 from reinaluxe_recovery.research.workflow import (
@@ -1091,6 +1094,32 @@ def research_smoke_command(
         error_console.print(f"Research smoke error: {error}", style="red")
         raise typer.Exit(code=EXIT_RESEARCH_ERROR) from error
     console.print(f"Research smoke: {validation['recommendation']} ({output})")
+
+
+@app.command("research-preview-queries")
+def research_preview_queries_command(
+    request: Annotated[
+        Path,
+        typer.Option("--request", exists=True, file_okay=True, dir_okay=False),
+    ],
+    query_families: Annotated[
+        str,
+        typer.Option(
+            "--query-families",
+            help="Comma-separated query families; preview only, maximum three.",
+        ),
+    ],
+    output: Annotated[Path, typer.Option("--output", file_okay=False)],
+) -> None:
+    """Preview exact lane-targeted queries without calling a provider or GLM."""
+    families = [item.strip() for item in query_families.split(",") if item.strip()]
+    try:
+        validation = run_research_preview_queries(request, families, output)
+    except (ResearchError, ValidationError, OSError) as error:
+        error_console.print(f"Research query preview error: {error}", style="red")
+        raise typer.Exit(code=EXIT_RESEARCH_ERROR) from error
+    status = "PASS" if validation["valid"] else "FAIL"
+    console.print(f"Research query preview: {status} ({output})")
 
 
 @app.command("research-build-asset-manifest")

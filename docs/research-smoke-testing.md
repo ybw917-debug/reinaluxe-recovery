@@ -15,4 +15,6 @@ The command makes no more than three Web Search calls, requests no more than fif
 
 Every provider result remains linked to its provider identifier, query, family, retrieval time, lane, and access classification. Reddit, public-forum, and official lanes require matching URL or brand-domain signals; a planned lane is not used to disguise a natural provider shortfall. Malformed URLs, invalid Reddit locations, exact URL duplicates, and identical title/snippet duplicates are reported. A failed coverage target is recorded rather than fabricated.
 
+Run the [query-integrity preview](research-query-integrity.md) first. The smoke call register preserves the exact search query, requested lane, domain filter, maximum results, anchors, and exclusions. Query-quality failures make no provider call. Results record requested and classified lanes separately, and family-specific lexical relevance is required before retention.
+
 The final recommendation is one of `full_run_recommended`, `full_run_recommended_with_adjustments`, `provider_coverage_insufficient`, `configuration_failed`, or `analysis_failed`. Runtime output under `data/research/smoke/` is ignored by Git.

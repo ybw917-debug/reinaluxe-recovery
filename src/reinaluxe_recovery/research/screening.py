@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections import Counter
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlsplit
@@ -26,9 +27,15 @@ from reinaluxe_recovery.research.contracts import (
     SourceCandidate,
     SourceLane,
     SourceLanePolicy,
+    VisualPageCandidate,
 )
 from reinaluxe_recovery.research.errors import ResearchArtifactError
 from reinaluxe_recovery.research.providers.base import ResearchSearchProvider
+from reinaluxe_recovery.research.query_integrity import (
+    canonical_query_family,
+    evaluate_query_quality,
+    topic_relevance_hits,
+)
 
 _FORUM_DOMAINS = {
     "purseforum.com",
@@ -53,23 +60,72 @@ _REDDIT_POST = re.compile(
     re.IGNORECASE,
 )
 _REDDIT_USERNAME = re.compile(r"(?<![\w/])(?:u/|/u/)[A-Za-z0-9_-]+", re.IGNORECASE)
+_COMMERCIAL_HOST_MARKERS = (
+    "aliexpress.",
+    "alibaba.",
+    "amazon.",
+    "dhgate.",
+    "ebay.",
+    "etsy.",
+    "taobao.",
+)
+_MULTIPART_PUBLIC_SUFFIXES = {
+    "co.jp",
+    "co.uk",
+    "com.au",
+    "com.cn",
+    "com.hk",
+    "com.sg",
+    "com.tw",
+}
+
+
+@dataclass(frozen=True)
+class SourceLaneClassification:
+    lane: SourceLane
+    rule: str
+    confidence: float
 
 
 def classify_source_lane(
     url: str, planned_lane: SourceLane, brand_scope: list[str] | None = None
 ) -> SourceLane:
-    """Classify deterministic strong signals, otherwise retain the planned lane."""
+    """Return the actual lane without using the requested lane as a fallback."""
+    del planned_lane
+    return classify_source_lane_details(url, brand_scope).lane
+
+
+def classify_source_lane_details(
+    url: str, brand_scope: list[str] | None = None
+) -> SourceLaneClassification:
+    """Classify a source from URL evidence independently of query intent."""
     host = (urlsplit(url).hostname or "").casefold().removeprefix("www.")
     path = urlsplit(url).path.casefold()
     if host == "reddit.com" or host.endswith(".reddit.com"):
-        return SourceLane.COMMUNITY_REDDIT
+        return SourceLaneClassification(SourceLane.COMMUNITY_REDDIT, "reddit_host", 1.0)
     if host in _FORUM_DOMAINS or "forum" in host or "/forum" in path:
-        return SourceLane.COMMUNITY_FORUMS
+        return SourceLaneClassification(
+            SourceLane.COMMUNITY_FORUMS, "public_forum_url_signal", 0.98
+        )
     if host.endswith(_OFFICIAL_SUFFIXES) or _matches_official_brand_domain(
         host, brand_scope or []
     ):
-        return SourceLane.PRIMARY_OFFICIAL
-    return planned_lane
+        return SourceLaneClassification(
+            SourceLane.PRIMARY_OFFICIAL, "official_domain_signal", 0.98
+        )
+    if any(marker in host for marker in _COMMERCIAL_HOST_MARKERS) or any(
+        marker in path for marker in ("/product/", "/products/", "/listing/")
+    ):
+        return SourceLaneClassification(
+            SourceLane.COMMERCIAL_OBSERVATION, "commercial_url_signal", 0.9
+        )
+    if path.casefold().endswith((".jpg", ".jpeg", ".png", ".webp", ".gif")):
+        return SourceLaneClassification(
+            SourceLane.VISUAL_IMAGE, "direct_image_url_signal", 0.95
+        )
+    return SourceLaneClassification(
+        SourceLane.EXPERT_EDITORIAL, "broad_web_editorial_default", 0.55
+    )
 
 
 def discover_sources(
@@ -87,12 +143,24 @@ def discover_sources(
     lane_counts: Counter[SourceLane] = Counter()
     sources: list[SourceCandidate] = []
     images: list[ImageCandidate] = []
+    visual_pages: list[VisualPageCandidate] = []
     exclusions: list[dict[str, Any]] = []
     seen_urls: dict[str, str] = {}
     seen_content: dict[str, str] = {}
     seen_images: dict[str, str] = {}
     executed: list[str] = []
     for query in plan.queries[: plan.maximum_search_calls]:
+        quality = evaluate_query_quality(query, plan.queries)
+        if not quality.passed:
+            exclusions.append(
+                {
+                    "query_id": query.query_id,
+                    "url": "",
+                    "reason": "query_quality_failed",
+                    "failure_reasons": quality.failure_reasons,
+                }
+            )
+            continue
         response = provider.execute_query(query)
         executed.append(query.query_id)
         raw_results = provider.normalize_results(query, response)
@@ -140,14 +208,17 @@ def discover_sources(
             for raw_image in raw_images(raw):
                 if len(images) >= plan.maximum_image_candidates:
                     break
-                image = screen_image_candidate(candidate, raw_image)
-                if image is None:
-                    continue
-                normalized_image = str(image.normalized_image_url or image.image_id)
-                if normalized_image in seen_images:
-                    continue
-                seen_images[normalized_image] = image.image_id
-                images.append(image)
+                image, visual_page = qualify_visual_candidate(candidate, raw_image)
+                if image is not None:
+                    normalized_image = str(
+                        image.normalized_image_url or image.image_locator
+                    )
+                    if normalized_image in seen_images:
+                        continue
+                    seen_images[normalized_image] = image.image_id
+                    images.append(image)
+                elif visual_page is not None:
+                    visual_pages.append(visual_page)
     run_base = {
         "search_run_id": stable_id(
             "run", {"research_id": plan.research_id, "plan_hash": plan.plan_hash}
@@ -156,8 +227,12 @@ def discover_sources(
         "plan_hash": plan.plan_hash,
         "provider": provider.provider_name,
         "query_ids": executed,
+        "queries": [query for query in plan.queries if query.query_id in set(executed)],
         "source_candidates": sorted(sources, key=lambda item: item.source_id),
         "image_candidates": sorted(images, key=lambda item: item.image_id),
+        "visual_page_candidates": sorted(
+            visual_pages, key=lambda item: item.visual_page_candidate_id
+        ),
         "exclusions": sorted(
             exclusions,
             key=lambda item: (
@@ -185,23 +260,11 @@ def screen_source_candidate(
         normalized = normalize_source_url(raw_url)
     except (ValueError, UnicodeError):
         return None, "invalid_url"
-    lane = classify_source_lane(normalized, query.source_lane, query.brand_scope)
-    policy = policies.get(lane) or policies.get(query.source_lane)
+    classification = classify_source_lane_details(normalized, query.brand_scope)
+    lane = classification.lane
+    policy = policies.get(lane)
     host = (urlsplit(normalized).hostname or "").casefold().removeprefix("www.")
     path = urlsplit(normalized).path
-    if (
-        query.source_lane
-        in {
-            SourceLane.COMMUNITY_REDDIT,
-            SourceLane.COMMUNITY_FORUMS,
-            SourceLane.PRIMARY_OFFICIAL,
-        }
-        and lane is query.source_lane
-        and not _has_strict_lane_signal(
-            normalized, query.source_lane, query.brand_scope
-        )
-    ):
-        return None, "source_lane_mismatch"
     if lane is SourceLane.COMMUNITY_REDDIT and not _is_reddit_post(normalized):
         return None, "invalid_reddit_url"
     if (
@@ -210,6 +273,11 @@ def screen_source_candidate(
         and not _is_reddit_host(host)
     ):
         return None, "non_reddit_url_classified_as_reddit"
+    if (
+        query.requested_source_lane is SourceLane.COMMUNITY_REDDIT
+        and lane is not SourceLane.COMMUNITY_REDDIT
+    ):
+        return None, "source_lane_mismatch"
     if policy is not None:
         if _domain_matches(host, policy.excluded_domains):
             return None, "excluded_domain"
@@ -221,6 +289,15 @@ def screen_source_candidate(
             return None, "path_requirement_not_met"
     published_at = _parse_datetime(raw.get("published_at"))
     retrieved_at = _parse_datetime(raw.get("retrieved_at"))
+    title = _safe_source_text(raw.get("title"), lane)
+    snippet = _safe_source_text(raw.get("snippet"), lane)
+    relevance_text = " ".join(value for value in (title, snippet, normalized) if value)
+    if canonical_query_family(query.query_family) and not topic_relevance_hits(
+        query.query_family, relevance_text
+    ):
+        return None, "topic_relevance_failed"
+    if lane is SourceLane.PRIMARY_OFFICIAL and _is_generic_official_page(normalized):
+        return None, "topic_relevance_failed"
     images = []
     for image in raw_images(raw):
         value = image.get("url") if isinstance(image, dict) else image
@@ -231,6 +308,18 @@ def screen_source_candidate(
         except ValueError:
             continue
     source_id = stable_id("source", normalized)
+    registrable = registrable_domain(host)
+    organization_cluster_id = stable_id(
+        "organization", organization_cluster_key(host, query.brand_scope)
+    )
+    independent_cluster_id = (
+        organization_cluster_id
+        if lane is SourceLane.PRIMARY_OFFICIAL
+        else stable_id(
+            "independent_source",
+            _source_cluster_key(host, raw.get("provider_metadata")),
+        )
+    )
     try:
         return (
             SourceCandidate.model_validate(
@@ -247,19 +336,30 @@ def screen_source_candidate(
                     "source_url": raw_url,
                     "normalized_url": normalized,
                     "source_lane": lane,
-                    "title": _safe_source_text(raw.get("title"), lane),
-                    "snippet": _safe_source_text(raw.get("snippet"), lane),
+                    "requested_source_lane": query.requested_source_lane,
+                    "classified_source_lane": lane,
+                    "classification_rule": classification.rule,
+                    "classification_confidence": classification.confidence,
+                    "classification_override_status": (
+                        "requested_lane_confirmed"
+                        if lane is query.requested_source_lane
+                        else "classified_lane_overridden"
+                    ),
+                    "title": title,
+                    "snippet": snippet,
                     "published_at": published_at,
                     "retrieved_at": retrieved_at,
                     "language": _optional_text(raw.get("language")),
                     "domain": host,
+                    "exact_host": host,
+                    "registrable_domain": registrable,
+                    "organization_cluster_id": organization_cluster_id,
+                    "regional_variant": regional_variant(host, registrable),
+                    "independent_source_cluster_id": independent_cluster_id,
                     "has_images": bool(images),
                     "image_urls": images,
                     "provider_rank": _nonnegative_int(raw.get("rank")),
-                    "source_cluster_id": stable_id(
-                        "source_cluster",
-                        _source_cluster_key(host, raw.get("provider_metadata")),
-                    ),
+                    "source_cluster_id": independent_cluster_id,
                     "metadata": _json_mapping(raw.get("provider_metadata")),
                 }
             ),
@@ -272,6 +372,14 @@ def screen_source_candidate(
 def screen_image_candidate(
     source: SourceCandidate, raw: Mapping[str, Any] | str
 ) -> ImageCandidate | None:
+    image, _ = qualify_visual_candidate(source, raw)
+    return image
+
+
+def qualify_visual_candidate(
+    source: SourceCandidate, raw: Mapping[str, Any] | str
+) -> tuple[ImageCandidate | None, VisualPageCandidate | None]:
+    """Separate a resolvable image from an unresolved visual page hint."""
     url_value: Any
     if isinstance(raw, str):
         url_value = raw
@@ -281,33 +389,29 @@ def screen_image_candidate(
         alt = _optional_text(raw.get("alt") or raw.get("alt_text"))
         caption = _optional_text(raw.get("caption"))
     media_metadata = _json_mapping(raw) if isinstance(raw, dict) else {}
-    if not isinstance(url_value, str) or not url_value.strip():
-        if not media_metadata:
-            return None
-        try:
-            return ImageCandidate.model_validate(
-                {
-                    "image_id": stable_id(
-                        "image_media",
-                        {"source_id": source.source_id, "media": media_metadata},
-                    ),
-                    "source_id": source.source_id,
-                    "query_id": source.query_id,
-                    "source_page_url": source.normalized_url,
-                    "target_topic": source.query_family,
-                    "image_source_category": _image_category(source.source_lane),
-                    "expected_visual_evidence": "Provider-returned visual-reference metadata only.",
-                    "required_attribution": "Retain source-page attribution and verify rights.",
-                    "provider_media_metadata": media_metadata,
-                }
+    if not isinstance(url_value, str) or not _is_absolute_http_url(url_value):
+        locator_key, locator_value = _metadata_image_locator(media_metadata)
+        if locator_value is None:
+            return None, _visual_page_candidate(
+                source,
+                media_metadata,
+                "provider media did not include an image URL or asset identifier",
             )
-        except ValidationError:
-            return None
+        url_value = locator_value if locator_key in {"asset_url", "src"} else None
+        locator_type = (
+            "explicit_media_asset_url"
+            if locator_key in {"asset_url", "src"}
+            else "source_specific_metadata"
+        )
+        locator = locator_value
+    else:
+        locator_type = "provider_image_url"
+        locator = url_value.strip()
     try:
-        normalized = normalize_url(_remove_tracking(url_value))
+        normalized = normalize_url(_remove_tracking(url_value)) if url_value else None
         return ImageCandidate.model_validate(
             {
-                "image_id": stable_id("image", normalized),
+                "image_id": stable_id("image", locator),
                 "source_id": source.source_id,
                 "query_id": source.query_id,
                 "image_url": url_value,
@@ -323,10 +427,14 @@ def screen_image_candidate(
                 "required_attribution": "Retain source-page attribution and verify rights.",
                 "duplicate_check_status": "unique",
                 "provider_media_metadata": media_metadata,
+                "image_locator_type": locator_type,
+                "image_locator": locator,
             }
-        )
+        ), None
     except (ValueError, ValidationError):
-        return None
+        return None, _visual_page_candidate(
+            source, media_metadata, "image locator failed contract validation"
+        )
 
 
 def raw_images(raw: Mapping[str, Any]) -> list[Mapping[str, Any] | str]:
@@ -390,6 +498,36 @@ def normalize_source_url(value: str) -> str:
     return f"https://reddit.com/r/{subreddit}/comments/{post_id}/"
 
 
+def registrable_domain(host: str) -> str:
+    """Return a deterministic registrable-domain approximation for clustering."""
+    labels = [label for label in host.casefold().strip(".").split(".") if label]
+    if len(labels) <= 2:
+        return ".".join(labels)
+    suffix = ".".join(labels[-2:])
+    return ".".join(labels[-3:]) if suffix in _MULTIPART_PUBLIC_SUFFIXES else suffix
+
+
+def regional_variant(host: str, registered: str) -> str | None:
+    """Identify subdomain-based regional variants without treating them as organizations."""
+    normalized = host.casefold().removeprefix("www.")
+    if normalized == registered:
+        return None
+    prefix = normalized[: -(len(registered) + 1)]
+    return prefix or None
+
+
+def organization_cluster_key(host: str, brand_scope: list[str] | None = None) -> str:
+    """Collapse official regional and country-domain variants to one organization."""
+    compact_host = re.sub(r"[^a-z0-9]", "", host.casefold())
+    for brand in brand_scope or []:
+        compact_brand = re.sub(r"[^a-z0-9]", "", brand.casefold())
+        if compact_brand in {"", "crossbrand"} or len(compact_brand) < 4:
+            continue
+        if compact_brand in compact_host:
+            return f"brand:{compact_brand}"
+    return f"domain:{registrable_domain(host)}"
+
+
 def _is_reddit_host(host: str) -> bool:
     return host == "reddit.com" or host.endswith(".reddit.com")
 
@@ -398,6 +536,61 @@ def _is_reddit_post(value: str) -> bool:
     parts = urlsplit(value)
     host = (parts.hostname or "").casefold().removeprefix("www.")
     return _is_reddit_host(host) and bool(_REDDIT_POST.match(parts.path))
+
+
+def _is_generic_official_page(value: str) -> bool:
+    parts = urlsplit(value)
+    path = parts.path.casefold().rstrip("/")
+    if not path:
+        return True
+    return any(
+        marker in path
+        for marker in (
+            "/checkout",
+            "/search",
+            "/shopping-bag",
+            "/magazine",
+            "/stories/index",
+        )
+    )
+
+
+def _is_absolute_http_url(value: str) -> bool:
+    try:
+        parts = urlsplit(value.strip())
+    except ValueError:
+        return False
+    return parts.scheme.casefold() in {"http", "https"} and bool(parts.hostname)
+
+
+def _metadata_image_locator(metadata: Mapping[str, Any]) -> tuple[str, str | None]:
+    for key in ("asset_url", "src", "image_id", "asset_id"):
+        value = metadata.get(key)
+        if value is None or not str(value).strip():
+            continue
+        candidate = str(value).strip()
+        if key in {"asset_url", "src"} and not _is_absolute_http_url(candidate):
+            continue
+        return key, candidate
+    return "", None
+
+
+def _visual_page_candidate(
+    source: SourceCandidate,
+    metadata: Mapping[str, Any],
+    reason: str,
+) -> VisualPageCandidate:
+    return VisualPageCandidate(
+        visual_page_candidate_id=stable_id(
+            "visual_page",
+            {"source_id": source.source_id, "metadata": dict(metadata)},
+        ),
+        source_id=source.source_id,
+        query_id=source.query_id,
+        source_page_url=source.normalized_url,
+        qualification_failure_reason=reason,
+        provider_media_metadata=dict(metadata),
+    )
 
 
 def _safe_source_text(value: Any, lane: SourceLane) -> str | None:

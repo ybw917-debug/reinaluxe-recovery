@@ -16,7 +16,7 @@ from pydantic import (
     model_validator,
 )
 
-from reinaluxe_recovery.community.normalization import content_hash
+from reinaluxe_recovery.community.normalization import content_hash, stable_id
 from reinaluxe_recovery.domain.base import DomainModel, NonEmptyText, Sha256Digest
 
 ContractVersion = Literal["1.0"]
@@ -500,9 +500,22 @@ class ResearchQuery(DomainModel):
     research_question_id: Identifier
     query_family: str | None = None
     source_lane: SourceLane
+    requested_source_lane: SourceLane
     search_text: NonEmptyText
+    exact_search_query: NonEmptyText
+    search_domain_filter: str | None = None
+    maximum_results: int = Field(default=10, ge=1, le=15)
     positive_terms: list[str] = Field(default_factory=list)
     exclusion_terms: list[str] = Field(default_factory=list)
+    query_anchor_terms: list[str] = Field(default_factory=list)
+    query_exclusion_terms: list[str] = Field(default_factory=list)
+    required_topic_anchors: list[str] = Field(default_factory=list)
+    prohibited_unrelated_entities: list[str] = Field(default_factory=list)
+    article_entities_included: list[str] = Field(default_factory=list)
+    entity_inclusion_rationale: str = "No article entities were included."
+    query_generation_inputs: dict[str, JsonValue] = Field(default_factory=dict)
+    clear_research_question: str | None = None
+    query_hash: Sha256Digest = "0" * 64
     temporal_range: TemporalScope = Field(default_factory=TemporalScope)
     brand_scope: list[str] = Field(default_factory=list)
     model_scope: list[str] = Field(default_factory=list)
@@ -510,6 +523,58 @@ class ResearchQuery(DomainModel):
     expected_evidence_type: NonEmptyText
     stopping_criteria: NonEmptyText
     language: NonEmptyText = "en"
+
+    @model_validator(mode="before")
+    @classmethod
+    def preserve_query_integrity(cls, value: object) -> object:
+        if not isinstance(value, dict):
+            return value
+        data = dict(value)
+        exact = data.get("exact_search_query") or data.get("search_text")
+        requested = data.get("requested_source_lane") or data.get("source_lane")
+        anchors = data.get("query_anchor_terms") or data.get("positive_terms") or []
+        exclusions = (
+            data.get("query_exclusion_terms") or data.get("exclusion_terms") or []
+        )
+        data["search_text"] = exact
+        data["exact_search_query"] = exact
+        data["source_lane"] = requested
+        data["requested_source_lane"] = requested
+        data["positive_terms"] = list(anchors)
+        data["query_anchor_terms"] = list(anchors)
+        data["exclusion_terms"] = list(exclusions)
+        data["query_exclusion_terms"] = list(exclusions)
+        expected = content_hash(
+            {
+                "exact_search_query": exact,
+                "query_family": data.get("query_family"),
+                "requested_source_lane": requested,
+                "search_domain_filter": data.get("search_domain_filter"),
+                "query_anchor_terms": list(anchors),
+                "query_exclusion_terms": list(exclusions),
+                "target_article_section": data.get("target_article_section"),
+                "article_entities_included": data.get("article_entities_included", []),
+                "query_generation_inputs": data.get("query_generation_inputs", {}),
+            }
+        )
+        supplied = data.get("query_hash")
+        if supplied is not None and supplied != expected:
+            raise ValueError("query_hash does not match query-generation inputs")
+        data["query_hash"] = expected
+        return data
+
+
+class QueryQualityRecord(DomainModel):
+    schema_version: ContractVersion = "1.0"
+    query_id: Identifier
+    passed: bool
+    required_anchor_hits: list[str] = Field(default_factory=list)
+    missing_required_anchors: list[str] = Field(default_factory=list)
+    prohibited_entity_hits: list[str] = Field(default_factory=list)
+    entity_contamination_score: float = Field(ge=0, le=1)
+    lane_strategy_valid: bool
+    duplicate_query_risk: bool
+    failure_reasons: list[str] = Field(default_factory=list)
 
 
 class ArticleAnalysis(DomainModel):
@@ -582,8 +647,10 @@ class SearchRun(DomainModel):
     plan_hash: Sha256Digest
     provider: NonEmptyText
     query_ids: list[str]
+    queries: list[ResearchQuery] = Field(default_factory=list)
     source_candidates: list[SourceCandidate] = Field(default_factory=list)
     image_candidates: list[ImageCandidate] = Field(default_factory=list)
+    visual_page_candidates: list[VisualPageCandidate] = Field(default_factory=list)
     exclusions: list[dict[str, JsonValue]] = Field(default_factory=list)
     usage: dict[str, JsonValue] = Field(default_factory=dict)
     run_hash: Sha256Digest | None = None
@@ -602,18 +669,61 @@ class SourceCandidate(DomainModel):
     source_url: HttpUrl
     normalized_url: HttpUrl
     source_lane: SourceLane
+    requested_source_lane: SourceLane
+    classified_source_lane: SourceLane
+    classification_rule: NonEmptyText
+    classification_confidence: float = Field(ge=0, le=1)
+    classification_override_status: Literal[
+        "requested_lane_confirmed", "classified_lane_overridden", "legacy_record"
+    ]
     title: str | None = None
     snippet: str | None = None
     published_at: AwareDatetime | None = None
     retrieved_at: AwareDatetime | None = None
     language: str | None = None
     domain: NonEmptyText
+    exact_host: NonEmptyText
+    registrable_domain: NonEmptyText
+    organization_cluster_id: Identifier
+    regional_variant: str | None = None
+    independent_source_cluster_id: Identifier
     has_images: bool = False
     image_urls: list[HttpUrl] = Field(default_factory=list)
     provider_rank: int | None = Field(default=None, ge=0)
     source_cluster_id: str | None = None
     source_available: bool = True
     metadata: dict[str, JsonValue] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def preserve_lane_and_cluster_compatibility(cls, value: object) -> object:
+        if not isinstance(value, dict):
+            return value
+        data = dict(value)
+        classified = data.get("classified_source_lane") or data.get("source_lane")
+        requested = data.get("requested_source_lane") or classified
+        data["source_lane"] = classified
+        data["classified_source_lane"] = classified
+        data["requested_source_lane"] = requested
+        data.setdefault("classification_rule", "legacy_record")
+        data.setdefault("classification_confidence", 0.5)
+        data.setdefault("classification_override_status", "legacy_record")
+        host = data.get("exact_host") or data.get("domain") or "unknown.invalid"
+        data["domain"] = host
+        data["exact_host"] = host
+        data.setdefault("registrable_domain", host)
+        organization = data.get("organization_cluster_id") or stable_id(
+            "organization", data["registrable_domain"]
+        )
+        independent = (
+            data.get("independent_source_cluster_id")
+            or data.get("source_cluster_id")
+            or organization
+        )
+        data["organization_cluster_id"] = organization
+        data["independent_source_cluster_id"] = independent
+        data["source_cluster_id"] = independent
+        return data
 
 
 class SourceEvidenceRecord(DomainModel):
@@ -666,14 +776,75 @@ class ImageCandidate(DomainModel):
     owner_review_status: ReviewStatus = ReviewStatus.PENDING
     linked_claim_ids: list[str] = Field(default_factory=list)
     perceptual_hash: str | None = None
+    candidate_resolution_status: Literal["resolved_image_candidate"] = (
+        "resolved_image_candidate"
+    )
+    image_locator_type: Literal[
+        "provider_image_url",
+        "explicit_media_asset_url",
+        "existing_page_image_id",
+        "local_file_path",
+        "source_specific_metadata",
+    ]
+    image_locator: NonEmptyText
+    page_may_contain_images: bool = True
+    actual_image_reference_available: Literal[True] = True
+    qualification_failure_reason: None = None
+    existing_page_image_id: str | None = None
+    local_file_path: Path | None = None
 
-    @model_validator(mode="after")
-    def require_provider_visual_reference(self) -> Self:
-        if self.image_url is None and not self.provider_media_metadata:
-            raise ValueError(
-                "image candidate requires a provider image URL or media metadata"
-            )
-        return self
+    @model_validator(mode="before")
+    @classmethod
+    def require_resolved_visual_reference(cls, value: object) -> object:
+        if not isinstance(value, dict):
+            return value
+        data = dict(value)
+        locator = data.get("image_locator")
+        locator_type = data.get("image_locator_type")
+        if not locator and data.get("image_url"):
+            locator = str(data["image_url"])
+            locator_type = "provider_image_url"
+        elif not locator and data.get("existing_page_image_id"):
+            locator = str(data["existing_page_image_id"])
+            locator_type = "existing_page_image_id"
+        elif not locator and data.get("local_file_path"):
+            locator = str(data["local_file_path"])
+            locator_type = "local_file_path"
+        if not locator:
+            metadata = data.get("provider_media_metadata")
+            if isinstance(metadata, dict):
+                for key in ("asset_url", "image_id", "asset_id", "src"):
+                    candidate = metadata.get(key)
+                    if candidate is not None and str(candidate).strip():
+                        locator = str(candidate).strip()
+                        locator_type = (
+                            "explicit_media_asset_url"
+                            if key in {"asset_url", "src"}
+                            else "source_specific_metadata"
+                        )
+                        break
+        if not locator or not locator_type:
+            raise ValueError("resolved image candidate requires a real image locator")
+        data["image_locator"] = locator
+        data["image_locator_type"] = locator_type
+        return data
+
+
+class VisualPageCandidate(DomainModel):
+    schema_version: ContractVersion = "1.0"
+    visual_page_candidate_id: Identifier
+    source_id: Identifier
+    query_id: Identifier
+    source_page_url: HttpUrl
+    candidate_resolution_status: Literal["visual_page_candidate"] = (
+        "visual_page_candidate"
+    )
+    image_locator_type: Literal["none"] = "none"
+    image_locator: str = ""
+    page_may_contain_images: bool = True
+    actual_image_reference_available: Literal[False] = False
+    qualification_failure_reason: NonEmptyText
+    provider_media_metadata: dict[str, JsonValue] = Field(default_factory=dict)
 
 
 class ImageEvidenceRecord(DomainModel):

@@ -1,5 +1,11 @@
 # Changelog
 
+## Stage 009C-Core-2 - 2026-07-16
+
+- Added the default exploratory editorial mode for legacy reconstruction, a twelve-family bilingual query universe, and one bounded GLM-assisted expansion round.
+- Added multi-dimensional source utility and relaxed editorial retention for useful commercial, anecdotal, seller-authored, community, adjacent-domain, and lane-mismatched records.
+- Added staged market synthesis, buyer guidance, substantial source-linked publication modules, adjacent-domain connections, and deterministic overclaim and fabrication review.
+
 ## Stage 009C-Core-1C - 2026-07-16
 
 - Added bounded Brave Web Search and non-executing Brave Image Search contracts with deterministic lane routing while preserving Zhipu search and GLM analysis.

@@ -93,6 +93,9 @@ from reinaluxe_recovery.research.workflow import (
     research_discover as run_research_discover,
 )
 from reinaluxe_recovery.research.workflow import (
+    research_explore as run_research_explore,
+)
+from reinaluxe_recovery.research.workflow import (
     research_export_review as run_research_export_review,
 )
 from reinaluxe_recovery.research.workflow import (
@@ -1097,6 +1100,33 @@ def research_smoke_command(
         error_console.print(f"Research smoke error: {error}", style="red")
         raise typer.Exit(code=EXIT_RESEARCH_ERROR) from error
     console.print(f"Research smoke: {validation['recommendation']} ({output})")
+
+
+@app.command("research-explore")
+def research_explore_command(
+    request: Annotated[
+        Path,
+        typer.Option("--request", exists=True, file_okay=True, dir_okay=False),
+    ],
+    output: Annotated[Path, typer.Option("--output", file_okay=False)],
+    first_round_calls: Annotated[int, typer.Option("--first-round-calls")] = 12,
+    second_round_calls: Annotated[int, typer.Option("--second-round-calls")] = 8,
+) -> None:
+    """Run two bounded exploratory discovery and synthesis rounds."""
+    try:
+        validation = run_research_explore(
+            request,
+            output,
+            first_round_calls=first_round_calls,
+            second_round_calls=second_round_calls,
+        )
+    except (ResearchError, ValidationError, OSError) as error:
+        error_console.print(f"Exploratory research error: {error}", style="red")
+        raise typer.Exit(code=EXIT_RESEARCH_ERROR) from error
+    console.print(
+        "Exploratory research: "
+        f"{validation['useful_source_candidates']} useful sources ({output})"
+    )
 
 
 @app.command("research-preview-queries")

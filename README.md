@@ -143,6 +143,8 @@ Stage 009C-Core-1B.1B refines the AAA defaults for natural retrieval and adds se
 
 Stage 009C-Core-1C adds [Brave providers and lane routing](docs/brave-research-provider.md), conjunctive result screening, offline Zhipu v2 reclassification, and provider comparison outputs.
 
+Stage 009C-Core-2 adds [exploratory editorial research](docs/exploratory-editorial-research.md): a broad bilingual query universe, one bounded GLM expansion round, multi-dimensional source utility, market-pattern synthesis, adjacent-domain explanations, draftable publication modules, and final fabrication review.
+
 - [Architecture](docs/architecture.md)
 - [Roadmap](docs/roadmap.md)
 - [Sprint 1](docs/sprint-1.md)

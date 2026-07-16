@@ -59,6 +59,12 @@ def load_research_request(path: Path) -> ResearchRequest:
     payload = _read_mapping(path)
     try:
         raw_mode = payload.get("mode")
+        if (
+            raw_mode is None
+            and payload.get("content_production_mode") == "legacy_reconstruction"
+        ):
+            raw_mode = ResearchMode.EXPLORATORY_EDITORIAL_RESEARCH.value
+            payload = {**payload, "mode": raw_mode}
         if not isinstance(raw_mode, str):
             raise ValueError("mode is required")
         mode = ResearchMode(raw_mode)
@@ -67,6 +73,7 @@ def load_research_request(path: Path) -> ResearchRequest:
             if mode
             in {
                 ResearchMode.ARTICLE_RESEARCH,
+                ResearchMode.EXPLORATORY_EDITORIAL_RESEARCH,
                 ResearchMode.CLAIM_VERIFY,
                 ResearchMode.EVIDENCE_GAP_FILL,
                 ResearchMode.VISUAL_RESEARCH,

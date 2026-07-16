@@ -208,6 +208,18 @@ uv run reinaluxe-recovery research-compare-providers `
 
 Reclassifies existing Brave and Zhipu result registers with the same current deterministic rules. It makes no search, GLM, result-page, Reddit, or image request and writes the provider comparison report and CSV register.
 
+## `research-explore`
+
+```powershell
+uv run reinaluxe-recovery research-explore `
+  --request docs/examples/aaa-pillar-001.yaml `
+  --output data/research/exploratory/aaa-pillar-001-core2 `
+  --first-round-calls 12 `
+  --second-round-calls 8
+```
+
+Runs the bounded two-round exploratory editorial workflow. The first round draws from the broad bilingual query universe; GLM generates the only permitted follow-up round. Output is planning-only and includes the research landscape, themes, patterns, inferences, guidance, adjacent-domain links, publication modules, image opportunities, change manifest, and overclaim review.
+
 ## `audit-articles`
 
 ```powershell

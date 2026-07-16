@@ -27,6 +27,10 @@ from reinaluxe_recovery.research.database import (
     DEFAULT_RESEARCH_DATABASE,
     build_research_snapshot,
 )
+from reinaluxe_recovery.research.exploratory import (
+    ExploratoryAnalysisProvider,
+    run_exploratory_research,
+)
 from reinaluxe_recovery.research.planning import build_research_plan
 from reinaluxe_recovery.research.preview import preview_queries as run_query_preview
 from reinaluxe_recovery.research.production import export_content_production
@@ -210,6 +214,24 @@ def research_compare_providers(
     """Compare a Brave run with an offline reclassification of Zhipu v2."""
     return export_provider_comparison(
         request_path, query_families, brave_run, zhipu_run, output
+    )
+
+
+def research_explore(
+    request_path: Path,
+    output: Path,
+    *,
+    first_round_calls: int | None = None,
+    second_round_calls: int | None = None,
+    analyzer: ExploratoryAnalysisProvider | None = None,
+) -> dict[str, object]:
+    """Run bounded exploratory discovery and planning-only editorial enrichment."""
+    return run_exploratory_research(
+        request_path,
+        output,
+        first_round_calls=first_round_calls,
+        second_round_calls=second_round_calls,
+        analyzer=analyzer,
     )
 
 

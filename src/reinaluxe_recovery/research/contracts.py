@@ -25,6 +25,7 @@ Identifier = Annotated[str, StringConstraints(min_length=1, strip_whitespace=Tru
 
 class ResearchMode(StrEnum):
     ARTICLE_RESEARCH = "article_research"
+    EXPLORATORY_EDITORIAL_RESEARCH = "exploratory_editorial_research"
     TOPIC_BUILD = "topic_build"
     TOPIC_REFRESH = "topic_refresh"
     CLAIM_VERIFY = "claim_verify"
@@ -338,6 +339,10 @@ class _ResearchRequest(DomainModel):
     maximum_search_calls: int = Field(default=20, ge=1)
     maximum_sources: int = Field(default=50, ge=1)
     maximum_image_candidates: int = Field(default=25, ge=0)
+    maximum_discovery_rounds: int = Field(default=2, ge=1, le=2)
+    first_round_call_budget: int = Field(default=12, ge=1)
+    second_round_call_budget: int = Field(default=8, ge=0)
+    total_call_budget: int = Field(default=20, ge=1)
     output_directory: Path
     provider: NonEmptyText = "zhipu"
     query_families: list[NonEmptyText] = Field(default_factory=list)
@@ -376,6 +381,7 @@ class _ResearchRequest(DomainModel):
             mode == ContentProductionMode.LEGACY_RECONSTRUCTION
             or mode == "legacy_reconstruction"
         ):
+            data.setdefault("mode", ResearchMode.EXPLORATORY_EDITORIAL_RESEARCH)
             data.setdefault("preserve_existing_images", True)
             data.setdefault("preserve_distinctive_content", True)
             data.setdefault("owner_firsthand_evidence_required", False)
@@ -412,6 +418,13 @@ class _ResearchRequest(DomainModel):
             raise ValueError(
                 "legacy reconstruction allows at most three new sections unless explicitly authorized"
             )
+        if (
+            self.first_round_call_budget + self.second_round_call_budget
+            > self.total_call_budget
+        ):
+            raise ValueError(
+                "exploratory round budgets cannot exceed total_call_budget"
+            )
         return self
 
     def computed_request_hash(self) -> str:
@@ -424,6 +437,7 @@ class _ResearchRequest(DomainModel):
 class ArticleResearchRequest(_ResearchRequest):
     mode: Literal[
         ResearchMode.ARTICLE_RESEARCH,
+        ResearchMode.EXPLORATORY_EDITORIAL_RESEARCH,
         ResearchMode.CLAIM_VERIFY,
         ResearchMode.EVIDENCE_GAP_FILL,
         ResearchMode.VISUAL_RESEARCH,
@@ -617,6 +631,10 @@ class ResearchPlan(DomainModel):
     maximum_search_calls: int = Field(ge=1)
     maximum_sources: int = Field(ge=1)
     maximum_image_candidates: int = Field(ge=0)
+    maximum_discovery_rounds: int = Field(default=2, ge=1, le=2)
+    first_round_call_budget: int = Field(default=12, ge=1)
+    second_round_call_budget: int = Field(default=8, ge=0)
+    total_call_budget: int = Field(default=20, ge=1)
     image_research_required: bool = False
     content_production_mode: ContentProductionMode = ContentProductionMode.RESEARCH_ONLY
     publication_intensity: PublicationIntensity = (

@@ -305,7 +305,7 @@ def screen_source_candidate(
     raw_title = _optional_text(raw.get("title"))
     raw_snippet = _optional_text(raw.get("snippet"))
     raw_content = " ".join(value for value in (raw_title, raw_snippet) if value)
-    if _is_corrupted_content(raw_content):
+    if is_corrupted_content(raw_content):
         return None, "corrupted_content"
     classification = classify_source_lane_details(
         normalized, query.brand_scope, raw_content
@@ -647,7 +647,7 @@ def _safe_source_text(value: Any, lane: SourceLane) -> str | None:
     return _REDDIT_USERNAME.sub("[redacted-user]", text)
 
 
-def _is_corrupted_content(value: str) -> bool:
+def is_corrupted_content(value: str) -> bool:
     """Reject obvious mojibake, control-heavy, or mechanically repeated content."""
     if not value:
         return False

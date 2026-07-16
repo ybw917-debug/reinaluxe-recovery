@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
+from reinaluxe_recovery.community.normalization import stable_id
 from reinaluxe_recovery.research.contracts import ResearchQuery
 from reinaluxe_recovery.research.errors import ResearchConfigurationError, ResearchError
 from reinaluxe_recovery.research.providers.base import ResearchSearchProvider
@@ -27,7 +29,10 @@ class ZhipuWebSearchProvider(ResearchSearchProvider):
         client: httpx.Client | None = None,
         endpoint: str = DEFAULT_SEARCH_ENDPOINT,
         timeout_seconds: float = 30.0,
+        result_count: int = 10,
     ) -> None:
+        if not 1 <= result_count <= 15:
+            raise ValueError("Zhipu result_count must be between 1 and 15")
         values = os.environ if environ is None else environ
         self._api_key = values.get("ZHIPU_API_KEY", "").strip()
         self._search_engine = values.get("ZHIPU_SEARCH_ENGINE", "").strip()
@@ -35,6 +40,7 @@ class ZhipuWebSearchProvider(ResearchSearchProvider):
         self._client = client
         self._endpoint = endpoint
         self._timeout_seconds = timeout_seconds
+        self._requested_result_count = result_count
         self._query_calls = 0
         self._result_count = 0
 
@@ -68,6 +74,7 @@ class ZhipuWebSearchProvider(ResearchSearchProvider):
             "alternate_languages": True,
             "summarizer_configured": bool(self._summarizer_model),
             "search_engine_configured": bool(self._search_engine),
+            "requested_result_count": self._requested_result_count,
         }
 
     def execute_query(self, query: ResearchQuery) -> Any:
@@ -76,7 +83,7 @@ class ZhipuWebSearchProvider(ResearchSearchProvider):
             "search_query": query.search_text[:70],
             "search_engine": self._search_engine,
             "search_intent": False,
-            "count": 10,
+            "count": self._requested_result_count,
             "search_recency_filter": "noLimit",
             "content_size": "high",
         }
@@ -121,15 +128,33 @@ class ZhipuWebSearchProvider(ResearchSearchProvider):
             url = item.get("link") or item.get("url")
             if not isinstance(url, str) or not url.strip():
                 continue
-            image_values = item.get("images") or item.get("image_urls") or []
+            image_values = (
+                item.get("images")
+                or item.get("image_urls")
+                or item.get("image_url")
+                or item.get("image")
+                or []
+            )
             if isinstance(image_values, str):
+                image_values = [image_values]
+            elif isinstance(image_values, dict):
                 image_values = [image_values]
             images: list[dict[str, Any] | str] = (
                 list(image_values) if isinstance(image_values, list) else []
             )
+            provider_result_id = item.get("id") or item.get("refer")
+            if provider_result_id is None:
+                provider_result_id = stable_id(
+                    "zhipu_result",
+                    {"query_id": query.query_id, "rank": rank, "url": url},
+                )
             output.append(
                 {
                     "url": url,
+                    "provider_result_id": str(provider_result_id),
+                    "provider_result_identifier_origin": (
+                        "provider" if item.get("id") or item.get("refer") else "derived"
+                    ),
                     "title": item.get("title"),
                     "snippet": item.get("content") or item.get("snippet"),
                     "published_at": item.get("publish_date")
@@ -137,9 +162,20 @@ class ZhipuWebSearchProvider(ResearchSearchProvider):
                     "language": item.get("language"),
                     "images": images,
                     "rank": rank,
+                    "retrieved_at": datetime.now(UTC).isoformat(),
+                    "provider_access_classification": (
+                        "provider_returned_content"
+                        if item.get("content")
+                        else "provider_returned_snippet"
+                    ),
                     "provider_metadata": {
                         "media": item.get("media"),
                         "refer": item.get("refer"),
+                        "provider_result_identifier_origin": (
+                            "provider"
+                            if item.get("id") or item.get("refer")
+                            else "derived"
+                        ),
                     },
                 }
             )
@@ -151,6 +187,7 @@ class ZhipuWebSearchProvider(ResearchSearchProvider):
             "provider": self.provider_name,
             "query_calls": self._query_calls,
             "normalized_results": self._result_count,
+            "requested_result_count": self._requested_result_count,
             "credentials_serialized": False,
             "search_engine": self._search_engine,
             "summarizer_model": self._summarizer_model,

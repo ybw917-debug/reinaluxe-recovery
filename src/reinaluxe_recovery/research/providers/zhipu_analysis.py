@@ -8,6 +8,7 @@ from collections.abc import Mapping
 from typing import Any
 
 import httpx
+from pydantic import ValidationError
 
 from reinaluxe_recovery.research.analysis import (
     SourceAnalysisProvider,
@@ -45,10 +46,13 @@ class ZhipuGLMSourceAnalyzer(SourceAnalysisProvider):
         prompt = {
             "instruction": (
                 "Analyze only this screened public-source record. Return JSON with relevance, "
-                "first_hand_status, specificity, commercial_promotion_risk, source_access_quality, "
-                "evidence_summary, claims, limitations, proposed_topic_ids, and "
-                "proposed_article_sections. Split claims atomically. Do not add URLs, infer image "
-                "authenticity/provenance, or expose private identities."
+                "source_lane_classification, first_hand_status, specificity, "
+                "commercial_promotion_risk, source_access_quality, evidence_summary, "
+                "key_observations, claims, limitations, proposed_topic_ids, "
+                "proposed_article_sections, and image_presence_assessment. Split claims "
+                "atomically. Do not add URLs or numbers absent from the returned source text, "
+                "infer image authenticity/provenance, expose private identities, or provide "
+                "chain-of-thought or hidden reasoning."
             ),
             "research_id": plan.research_id,
             "source": source.model_dump(mode="json"),
@@ -80,6 +84,11 @@ class ZhipuGLMSourceAnalyzer(SourceAnalysisProvider):
                 raise ValueError("analysis response is not an object")
             # The analyzer cannot add a SourceCandidate; source identity remains immutable.
             return SourceAnalysisResult.model_validate(value)
+        except ValidationError as error:
+            raise ResearchError(
+                f"GLM structured validation failed for source {source.source_id}; "
+                "credentials were redacted"
+            ) from error
         except (httpx.HTTPError, KeyError, IndexError, ValueError) as error:
             raise ResearchError(
                 f"GLM analysis failed for source {source.source_id}; credentials were redacted"

@@ -81,6 +81,9 @@ from reinaluxe_recovery.research.workflow import (
     research_analyze as run_research_analyze,
 )
 from reinaluxe_recovery.research.workflow import (
+    research_build_asset_manifest as run_research_build_asset_manifest,
+)
+from reinaluxe_recovery.research.workflow import (
     research_build_snapshot as run_research_build_snapshot,
 )
 from reinaluxe_recovery.research.workflow import (
@@ -97,6 +100,9 @@ from reinaluxe_recovery.research.workflow import (
 )
 from reinaluxe_recovery.research.workflow import (
     research_refresh as run_research_refresh,
+)
+from reinaluxe_recovery.research.workflow import (
+    research_smoke as run_research_smoke,
 )
 
 app = typer.Typer(
@@ -1048,6 +1054,69 @@ def research_image_review_command(
         error_console.print(f"Research image review error: {error}", style="red")
         raise typer.Exit(code=EXIT_RESEARCH_ERROR) from error
     console.print(f"Research image review: {output}")
+
+
+@app.command("research-smoke")
+def research_smoke_command(
+    request: Annotated[
+        Path,
+        typer.Option("--request", exists=True, file_okay=True, dir_okay=False),
+    ],
+    query_families: Annotated[
+        str,
+        typer.Option(
+            "--query-families",
+            help="Comma-separated query families; one provider call per family, maximum three.",
+        ),
+    ],
+    output: Annotated[Path, typer.Option("--output", file_okay=False)],
+    research_database: Annotated[Path, typer.Option("--research-database")] = Path(
+        "data/research/runtime/research.sqlite"
+    ),
+    glm_assisted: Annotated[
+        bool, typer.Option("--glm-assisted/--deterministic-analysis")
+    ] = False,
+) -> None:
+    """Run a maximum-three-call provider smoke test without crawling result pages."""
+    families = [item.strip() for item in query_families.split(",") if item.strip()]
+    try:
+        validation = run_research_smoke(
+            request,
+            families,
+            output,
+            research_database=research_database,
+            glm_assisted=glm_assisted,
+        )
+    except (ResearchError, ValidationError, OSError) as error:
+        error_console.print(f"Research smoke error: {error}", style="red")
+        raise typer.Exit(code=EXIT_RESEARCH_ERROR) from error
+    console.print(f"Research smoke: {validation['recommendation']} ({output})")
+
+
+@app.command("research-build-asset-manifest")
+def research_build_asset_manifest_command(
+    asset_root: Annotated[
+        Path,
+        typer.Option("--asset-root", exists=True, file_okay=False, dir_okay=True),
+    ],
+    brand: Annotated[str, typer.Option("--brand")],
+    model: Annotated[str, typer.Option("--model")],
+    size: Annotated[str, typer.Option("--size")],
+    output: Annotated[Path, typer.Option("--output", file_okay=True, dir_okay=False)],
+) -> None:
+    """Inventory local future-page assets without modifying source files."""
+    try:
+        records = run_research_build_asset_manifest(
+            asset_root,
+            output,
+            brand=brand,
+            model=model,
+            size=size,
+        )
+    except (ResearchError, ValidationError, OSError) as error:
+        error_console.print(f"Asset manifest error: {error}", style="red")
+        raise typer.Exit(code=EXIT_RESEARCH_ERROR) from error
+    console.print(f"Asset manifest: files={len(records)} ({output})")
 
 
 @app.command("acquire-site")

@@ -1,0 +1,2 @@
+asset_id,relative_path,file_type,sha256,perceptual_hash,brand,model,size,leather,hardware,angle_or_detail,source_category,source_code,owner_reviewed,owner_photographed,publication_permission,target_topics,notes
+asset_fixture_model_overview,source-notes/model-overview.txt,text/plain,36802e41d49f72d770fdb5b76b2351aa3c9a610f5e3d393b8e18458acca67110,,Hermes,Kelly,28,,,,,,false,false,internal_only,"[""hermes-kelly-28""]",Synthetic documentation fixture

@@ -158,7 +158,8 @@ def build_editorial_synthesis(
         source_ids = sorted({item.source_id for item in links})
         source_clusters = {
             str(
-                sources[source_id].metadata.get("seller_source_cluster")
+                sources[source_id].source_cluster_id
+                or sources[source_id].metadata.get("seller_source_cluster")
                 or sources[source_id].domain
             )
             for source_id in source_ids
@@ -212,6 +213,7 @@ def build_editorial_synthesis(
                 ),
                 source_observation=source_observation,
                 source_count=len(source_ids),
+                independent_source_cluster_count=len(source_clusters),
                 source_lane_count=lane_count,
                 visual_evidence_count=visual_count,
                 contradiction_status="present" if contradiction else "none",
@@ -445,6 +447,29 @@ def load_asset_manifest(plan: ResearchPlan) -> list[NewPageAssetRecord]:
             for key, value in raw_record.items()
             if value is not None and value != ""
         }
+        if "relative_path" in payload:
+            relative_path = str(payload["relative_path"])
+            file_type = str(payload.get("file_type", ""))
+            payload["local_path"] = relative_path
+            payload["asset_type"] = (
+                "image"
+                if file_type.startswith("image/")
+                else "text"
+                if file_type.startswith("text/") or file_type == "application/json"
+                else "other"
+            )
+            payload["description"] = payload.get("notes")
+            payload["publication_permission"] = payload.get(
+                "publication_permission", "unknown_permission"
+            )
+            raw_topics = payload.get("target_topics")
+            if isinstance(raw_topics, str):
+                try:
+                    payload["target_topics"] = json.loads(raw_topics)
+                except json.JSONDecodeError:
+                    payload["target_topics"] = [
+                        item.strip() for item in raw_topics.split(",") if item.strip()
+                    ]
         local_value = payload.get("local_path")
         if local_value:
             candidate = Path(str(local_value))
@@ -460,6 +485,11 @@ def load_asset_manifest(plan: ResearchPlan) -> list[NewPageAssetRecord]:
             payload["local_path"] = resolved
             if resolved.is_file():
                 payload["sha256"] = hashlib.sha256(resolved.read_bytes()).hexdigest()
+        payload = {
+            key: value
+            for key, value in payload.items()
+            if key in NewPageAssetRecord.model_fields
+        }
         try:
             records.append(NewPageAssetRecord.model_validate(payload))
         except ValidationError as error:

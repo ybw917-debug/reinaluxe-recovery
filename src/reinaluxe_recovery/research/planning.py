@@ -335,6 +335,11 @@ def _allocate_queries(
                 ResearchQuery(
                     query_id=stable_id("query", seed),
                     research_question_id=question.question_id,
+                    query_family=(
+                        question.rationale.removeprefix("query family: ")
+                        if question.rationale.startswith("query family: ")
+                        else None
+                    ),
                     source_lane=policy.source_lane,
                     search_text=search_text,
                     positive_terms=[*request.brand_scope, *request.model_scope],

@@ -150,9 +150,14 @@ class SyntheticProvider(ResearchSearchProvider):
             "primary_official": "standard.example.gov",
             "visual_image": "visual.example.test",
         }[query.source_lane.value]
+        path = (
+            f"/r/example/comments/{query.query_id[-8:]}/fixture/"
+            if query.source_lane.value == "community_reddit"
+            else f"/{query.query_id}"
+        )
         result = {
-            "url": f"https://{host}/{query.query_id}?utm_source=test",
-            "title": "Scoped public observation",
+            "url": f"https://{host}{path}?utm_source=test",
+            "title": f"Scoped public observation {query.query_id}",
             "snippet": "I compared this method and it does not always give identical quality.",
             "images": [
                 {

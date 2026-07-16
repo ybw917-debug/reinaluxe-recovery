@@ -1,5 +1,13 @@
 # CLI Reference
 
+## Research smoke
+
+`research-smoke --request REQUEST --query-families FAMILY[,FAMILY] --output DIRECTORY [--research-database PATH] [--glm-assisted]` runs the no-retry, maximum-three-call provider smoke test and writes the coverage recommendation.
+
+## Research asset manifest
+
+`research-build-asset-manifest --asset-root DIRECTORY --brand BRAND --model MODEL --size SIZE --output MANIFEST.csv` inventories supported local files without modifying them.
+
 ## Offline community evidence commands
 
 `community-import --manifest PATH --output DIRECTORY` validates a confined

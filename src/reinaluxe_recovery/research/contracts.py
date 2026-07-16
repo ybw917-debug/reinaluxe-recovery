@@ -67,6 +67,28 @@ class ContentChangeOperation(StrEnum):
     ADD_AFTER = "ADD_AFTER"
 
 
+class ImageSourceCategory(StrEnum):
+    EXISTING_PAGE_IMAGE = "existing_page_image"
+    OWNER_ORIGINAL = "owner_original"
+    OWNER_SUBMITTED = "owner_submitted"
+    QC_IMAGE = "qc_image"
+    SELLER_SHOT = "seller_shot"
+    SUPPLIER_PROVIDED = "supplier_provided"
+    COMMUNITY_IMAGE = "community_image"
+    OFFICIAL_REFERENCE = "official_reference"
+    EXPERT_REFERENCE = "expert_reference"
+    COMMERCIAL_LISTING = "commercial_listing"
+    UNKNOWN_ORIGIN = "unknown_origin"
+
+
+class SmokeRecommendation(StrEnum):
+    FULL_RUN_RECOMMENDED = "full_run_recommended"
+    FULL_RUN_RECOMMENDED_WITH_ADJUSTMENTS = "full_run_recommended_with_adjustments"
+    PROVIDER_COVERAGE_INSUFFICIENT = "provider_coverage_insufficient"
+    CONFIGURATION_FAILED = "configuration_failed"
+    ANALYSIS_FAILED = "analysis_failed"
+
+
 class SourceLane(StrEnum):
     COMMUNITY_REDDIT = "community_reddit"
     COMMUNITY_FORUMS = "community_forums"
@@ -201,6 +223,7 @@ class EditorialSynthesisRecord(DomainModel):
     evidence_ownership_class: EvidenceOwnershipClass
     source_observation: NonEmptyText
     source_count: int = Field(ge=0)
+    independent_source_cluster_count: int = Field(default=0, ge=0)
     source_lane_count: int = Field(ge=0)
     visual_evidence_count: int = Field(ge=0)
     contradiction_status: Literal["none", "present", "unresolved"]
@@ -240,14 +263,57 @@ class NewPageAssetRecord(DomainModel):
     asset_id: Identifier
     asset_type: Literal["image", "text", "measurement", "document", "other"]
     local_path: Path | None = None
+    relative_path: str | None = None
     remote_url: HttpUrl | None = None
+    brand: str | None = None
     model: str | None = None
     size: str | None = None
     leather: str | None = None
     hardware: str | None = None
     description: str | None = None
+    angle_or_detail: str | None = None
+    source_category: ImageSourceCategory | None = None
+    source_code: str | None = None
+    owner_reviewed: bool = False
+    owner_photographed: bool = False
     publication_permission: NonEmptyText = "unknown_permission"
+    target_topics: list[str] = Field(default_factory=list)
     sha256: Sha256Digest | None = None
+    perceptual_hash: str | None = None
+
+
+class AssetManifestRecord(DomainModel):
+    schema_version: ContractVersion = "1.0"
+    asset_id: Identifier
+    relative_path: Path
+    file_type: NonEmptyText
+    sha256: Sha256Digest
+    perceptual_hash: str = ""
+    brand: str = ""
+    model: str = ""
+    size: str = ""
+    leather: str = ""
+    hardware: str = ""
+    angle_or_detail: str = ""
+    source_category: ImageSourceCategory | None = None
+    source_code: str = ""
+    owner_reviewed: bool = False
+    owner_photographed: bool = False
+    publication_permission: str = ""
+    target_topics: list[str] = Field(default_factory=list)
+    notes: str = ""
+
+    @model_validator(mode="after")
+    def validate_local_owner_record(self) -> Self:
+        if self.relative_path.is_absolute() or ".." in self.relative_path.parts:
+            raise ValueError("asset relative_path must remain inside the asset root")
+        if self.source_category is ImageSourceCategory.OWNER_ORIGINAL and not (
+            self.owner_reviewed and self.owner_photographed
+        ):
+            raise ValueError(
+                "owner_original requires explicit owner review and photography records"
+            )
+        return self
 
 
 class _ResearchRequest(DomainModel):
@@ -432,6 +498,7 @@ class ResearchQuery(DomainModel):
     schema_version: ContractVersion = "1.0"
     query_id: Identifier
     research_question_id: Identifier
+    query_family: str | None = None
     source_lane: SourceLane
     search_text: NonEmptyText
     positive_terms: list[str] = Field(default_factory=list)
@@ -526,7 +593,12 @@ class SourceCandidate(DomainModel):
     schema_version: ContractVersion = "1.0"
     source_id: Identifier
     query_id: Identifier
+    query_family: str | None = None
     provider: NonEmptyText
+    provider_result_id: str | None = None
+    provider_access_classification: Literal[
+        "provider_returned_snippet", "provider_returned_content", "metadata_only"
+    ] = "provider_returned_snippet"
     source_url: HttpUrl
     normalized_url: HttpUrl
     source_lane: SourceLane
@@ -539,6 +611,7 @@ class SourceCandidate(DomainModel):
     has_images: bool = False
     image_urls: list[HttpUrl] = Field(default_factory=list)
     provider_rank: int | None = Field(default=None, ge=0)
+    source_cluster_id: str | None = None
     source_available: bool = True
     metadata: dict[str, JsonValue] = Field(default_factory=dict)
 
@@ -548,12 +621,17 @@ class SourceEvidenceRecord(DomainModel):
     evidence_id: Identifier
     source_id: Identifier
     query_id: Identifier
+    source_lane_classification: SourceLane | None = None
     relevance: float = Field(ge=0, le=1)
     first_hand_status: Literal["first_hand", "hearsay", "mixed", "unknown"]
     specificity: float = Field(ge=0, le=1)
     commercial_promotion_risk: Literal["low", "medium", "high", "unknown"]
     source_access_quality: Literal["full", "partial", "snippet_only", "unavailable"]
     evidence_summary: NonEmptyText
+    key_observations: list[str] = Field(default_factory=list)
+    image_presence_assessment: Literal[
+        "present", "not_returned", "metadata_only", "uncertain"
+    ] = "uncertain"
     limitations: list[str] = Field(default_factory=list)
     proposed_topic_ids: list[str] = Field(default_factory=list)
     proposed_article_sections: list[str] = Field(default_factory=list)
@@ -564,18 +642,38 @@ class ImageCandidate(DomainModel):
     image_id: Identifier
     source_id: Identifier
     query_id: Identifier
-    image_url: HttpUrl
-    normalized_image_url: HttpUrl
+    image_url: HttpUrl | None = None
+    normalized_image_url: HttpUrl | None = None
     source_page_url: HttpUrl
     alt_text: str | None = None
     caption: str | None = None
     brand: str | None = None
     model: str | None = None
+    size: str | None = None
+    leather: str | None = None
+    hardware: str | None = None
+    target_topic: str | None = None
+    proposed_article_section: str | None = None
+    image_source_category: ImageSourceCategory = ImageSourceCategory.UNKNOWN_ORIGIN
+    expected_visual_evidence: str | None = None
+    required_attribution: str | None = None
+    duplicate_check_status: Literal[
+        "not_checked", "unique", "exact_duplicate", "probable_duplicate"
+    ] = "not_checked"
+    provider_media_metadata: dict[str, JsonValue] = Field(default_factory=dict)
     topic_ids: list[str] = Field(default_factory=list)
     publication_permission_status: PermissionStatus = PermissionStatus.UNKNOWN
     owner_review_status: ReviewStatus = ReviewStatus.PENDING
     linked_claim_ids: list[str] = Field(default_factory=list)
     perceptual_hash: str | None = None
+
+    @model_validator(mode="after")
+    def require_provider_visual_reference(self) -> Self:
+        if self.image_url is None and not self.provider_media_metadata:
+            raise ValueError(
+                "image candidate requires a provider image URL or media metadata"
+            )
+        return self
 
 
 class ImageEvidenceRecord(DomainModel):

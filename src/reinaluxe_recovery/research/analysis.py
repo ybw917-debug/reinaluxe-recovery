@@ -29,28 +29,38 @@ from reinaluxe_recovery.research.contracts import (
     SearchRun,
     SourceCandidate,
     SourceEvidenceRecord,
+    SourceLane,
 )
 
 _SENTENCE = re.compile(r"(?<=[.!?])\s+")
 _TOKENS = re.compile(r"[\w']+", re.UNICODE)
 _NEGATIVE = {"not", "no", "never", "without", "isn't", "doesn't", "cannot", "can't"}
 _FIRST_HAND = re.compile(r"\b(?:i|we|my|our)\b", re.IGNORECASE)
+_NUMBER = re.compile(
+    r"(?<!\w)\d+(?:[.,]\d+)?(?:\s?(?:%|kg|g|lb|oz|cm|mm|in))?", re.IGNORECASE
+)
+_URL = re.compile(r"https?://|www\.", re.IGNORECASE)
 _PROMOTION = re.compile(
     r"\b(?:buy now|discount|coupon|affiliate|contact me|best price)\b", re.IGNORECASE
 )
 
 
 class SourceAnalysisResult(DomainModel):
+    source_lane_classification: SourceLane | None = None
     relevance: float = Field(ge=0, le=1)
     first_hand_status: Literal["first_hand", "hearsay", "mixed", "unknown"]
     specificity: float = Field(ge=0, le=1)
     commercial_promotion_risk: Literal["low", "medium", "high", "unknown"]
     source_access_quality: Literal["full", "partial", "snippet_only", "unavailable"]
     evidence_summary: str
+    key_observations: list[str] = Field(default_factory=list)
     claims: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
     proposed_topic_ids: list[str] = Field(default_factory=list)
     proposed_article_sections: list[str] = Field(default_factory=list)
+    image_presence_assessment: Literal[
+        "present", "not_returned", "metadata_only", "uncertain"
+    ] = "uncertain"
 
 
 class SourceAnalysisProvider(ABC):
@@ -100,15 +110,20 @@ class DeterministicSourceAnalyzer(SourceAnalysisProvider):
                 "image appearance does not prove provenance or authenticity"
             )
         return SourceAnalysisResult(
+            source_lane_classification=source.source_lane,
             relevance=0.6 if composite else 0.0,
             first_hand_status=first_hand,
             specificity=min(1.0, len(composite.split()) / 50) if composite else 0.0,
             commercial_promotion_risk=risk,
             source_access_quality="snippet_only",
             evidence_summary=composite or "No provider excerpt was available.",
+            key_observations=claims,
             claims=claims,
             limitations=limitations,
             proposed_article_sections=[],
+            image_presence_assessment=(
+                "present" if source.has_images else "not_returned"
+            ),
         )
 
 
@@ -157,18 +172,27 @@ def analyze_search_run(
                 evidence_id=evidence_id,
                 source_id=source.source_id,
                 query_id=source.query_id,
+                source_lane_classification=(
+                    result.source_lane_classification or source.source_lane
+                ),
                 relevance=result.relevance,
                 first_hand_status=result.first_hand_status,
                 specificity=result.specificity,
                 commercial_promotion_risk=result.commercial_promotion_risk,
                 source_access_quality=result.source_access_quality,
                 evidence_summary=result.evidence_summary,
+                key_observations=result.key_observations,
+                image_presence_assessment=result.image_presence_assessment,
                 limitations=result.limitations,
                 proposed_topic_ids=topic_ids,
                 proposed_article_sections=sections,
             )
         )
         for raw_claim in result.claims:
+            if _URL.search(raw_claim) or not _numeric_claim_is_grounded(
+                raw_claim, source
+            ):
+                continue
             normalized = normalize_claim_text(raw_claim)
             if not normalized:
                 continue
@@ -242,6 +266,17 @@ def analyze_search_run(
         topic_knowledge_opportunities=topic_opportunities,
         article_content_opportunities=article_opportunities,
     )
+
+
+def _numeric_claim_is_grounded(claim: str, source: SourceCandidate) -> bool:
+    claim_numbers = {item.casefold() for item in _NUMBER.findall(claim)}
+    if not claim_numbers:
+        return True
+    source_text = " ".join(
+        item for item in (source.title, source.snippet) if item is not None
+    )
+    source_numbers = {item.casefold() for item in _NUMBER.findall(source_text)}
+    return claim_numbers <= source_numbers
 
 
 def _build_clusters(

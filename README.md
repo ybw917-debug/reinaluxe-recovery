@@ -135,6 +135,8 @@ Stage 009C-Core adds article-driven, multi-source research orchestration. Start 
 
 Stage 009C-Core-1A adds [content production modes](docs/research-content-production-modes.md) for preserving and enriching existing pages or preparing evidence-led future pages. These modes generate reviewable planning and synthesis artifacts only; they do not apply changes or publish content.
 
+Stage 009C-Core-1B adds [bounded research smoke testing](docs/research-smoke-testing.md), first-class [visual candidates](docs/research-visual-candidates.md), and offline [asset manifests](docs/research-asset-manifests.md) for future model pages.
+
 - [Architecture](docs/architecture.md)
 - [Roadmap](docs/roadmap.md)
 - [Sprint 1](docs/sprint-1.md)

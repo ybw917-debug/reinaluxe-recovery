@@ -1,5 +1,12 @@
 # Changelog
 
+## Stage 009C-Core-1B - 2026-07-16
+
+- Added the hard-limited `research-smoke` workflow with provider-call, raw-result, source-integrity, GLM-validation, visual-candidate, synthesis, and recommendation outputs.
+- Added strict Reddit permalink screening, tracking-safe normalization, duplicate/source-cluster reporting, provider-result traceability, and rejection of model-added URLs or ungrounded numbers.
+- Added `research-build-asset-manifest` for relative-path inventory, SHA-256, optional perceptual hashes, duplicate reporting, owner-original protection, and Core-1A new-page intake.
+- Documented smoke operations, visual candidates, asset manifests, and the recommended Hermès asset-library layout.
+
 ## Stage 009C-Core-1A - 2026-07-16
 
 - Added research-only, legacy-reconstruction, and new-page-build production modes.

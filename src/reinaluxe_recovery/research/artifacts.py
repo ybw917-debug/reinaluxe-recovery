@@ -95,6 +95,7 @@ def write_plan(plan: ResearchPlan, output: Path) -> None:
         [
             "query_id",
             "research_question_id",
+            "query_family",
             "source_lane",
             "search_text",
             "positive_terms",

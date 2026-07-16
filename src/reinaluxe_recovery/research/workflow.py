@@ -20,7 +20,8 @@ from reinaluxe_recovery.research.artifacts import (
     write_run,
     write_snapshot,
 )
-from reinaluxe_recovery.research.contracts import ResearchSnapshot
+from reinaluxe_recovery.research.assets import build_asset_manifest
+from reinaluxe_recovery.research.contracts import AssetManifestRecord, ResearchSnapshot
 from reinaluxe_recovery.research.database import (
     DEFAULT_RESEARCH_DATABASE,
     build_research_snapshot,
@@ -34,6 +35,7 @@ from reinaluxe_recovery.research.providers import (
     default_provider_registry,
 )
 from reinaluxe_recovery.research.screening import discover_sources
+from reinaluxe_recovery.research.smoke import research_smoke as run_smoke
 
 
 def research_plan(request_path: Path, output: Path) -> None:
@@ -171,4 +173,44 @@ def research_image_review(analysis_path: Path, output: Path) -> None:
     write_text(
         output / "image-review.md",
         "# Image research review\n\nNo images were downloaded or approved. Appearance does not prove provenance or authenticity.\n",
+    )
+
+
+def research_smoke(
+    request_path: Path,
+    query_families: list[str],
+    output: Path,
+    *,
+    research_database: Path = DEFAULT_RESEARCH_DATABASE,
+    glm_assisted: bool = False,
+    provider: ResearchSearchProvider | None = None,
+    analyzer: SourceAnalysisProvider | None = None,
+) -> dict[str, object]:
+    """Run the hard-limited discovery smoke workflow without page retrieval."""
+    return run_smoke(
+        request_path,
+        query_families,
+        output,
+        research_database=research_database,
+        glm_assisted=glm_assisted,
+        provider=provider,
+        analyzer=analyzer,
+    )
+
+
+def research_build_asset_manifest(
+    asset_root: Path,
+    output: Path,
+    *,
+    brand: str,
+    model: str,
+    size: str,
+) -> list[AssetManifestRecord]:
+    """Build a local, owner-editable future-page asset manifest."""
+    return build_asset_manifest(
+        asset_root,
+        output,
+        brand=brand,
+        model=model,
+        size=size,
     )

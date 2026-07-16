@@ -139,10 +139,15 @@ class MultiSourceProvider(ResearchSearchProvider):
             "community_forums": "forum.example.test",
             "expert_editorial": "editorial.example.test",
         }[query.source_lane.value]
+        path = (
+            f"/r/example/comments/{query.query_id[-8:]}/fixture/"
+            if query.source_lane.value == "community_reddit"
+            else f"/{query.query_id}"
+        )
         return [
             {
-                "url": f"https://{host}/{query.query_id}",
-                "title": "Visible construction assessment",
+                "url": f"https://{host}{path}",
+                "title": f"Visible construction assessment {query.source_lane.value}.",
                 "snippet": (
                     "Reviewed examples show controlled shape and cleaner visible construction."
                 ),
@@ -236,7 +241,7 @@ def test_assertive_synthesis_and_section_level_enrich_mapping(tmp_path: Path) ->
     plan, bundle = _bundle(tmp_path)
     synthesis = build_editorial_synthesis(plan, bundle)
     assert synthesis
-    finding = synthesis[0]
+    finding = max(synthesis, key=lambda item: item.source_count)
     assert finding.source_count == 3
     assert finding.source_lane_count == 3
     assert finding.visual_evidence_count == 3

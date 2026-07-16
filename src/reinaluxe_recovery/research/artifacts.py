@@ -27,6 +27,10 @@ from reinaluxe_recovery.research.contracts import (
     TopicResearchRequest,
 )
 from reinaluxe_recovery.research.errors import ResearchArtifactError
+from reinaluxe_recovery.research.production import (
+    COMMON_PRODUCTION_OUTPUTS,
+    export_content_production,
+)
 
 STANDARD_OUTPUTS = (
     "research-executive-brief.md",
@@ -46,6 +50,7 @@ STANDARD_OUTPUTS = (
     "owner-review.md",
     "research-snapshot.json",
     "validation.json",
+    *COMMON_PRODUCTION_OUTPUTS,
 )
 
 
@@ -168,6 +173,7 @@ def export_review_package(
     """Export every standard artifact without drafting or modifying an article."""
     write_analysis(bundle, output)
     write_snapshot(snapshot, output)
+    production = export_content_production(bundle.plan, output, bundle=bundle)
     corroborated = [
         item
         for item in bundle.claim_clusters
@@ -208,6 +214,7 @@ def export_review_package(
             for claim in bundle.candidate_claims
         ),
         "snapshot_hash": snapshot.snapshot_hash,
+        "content_production": production,
     }
     write_json(output / "validation.json", validation)
     missing = [name for name in STANDARD_OUTPUTS if not (output / name).is_file()]

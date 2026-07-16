@@ -19,6 +19,9 @@ from reinaluxe_recovery.community.normalization import (
 from reinaluxe_recovery.research.contracts import (
     ArticleAnalysis,
     ArticleResearchRequest,
+    ContentProductionMode,
+    ExistingArticleImage,
+    ExistingArticleSection,
     ResearchPlan,
     ResearchQuery,
     ResearchQuestion,
@@ -32,6 +35,7 @@ _FIRST_HAND = re.compile(
     r"\b(?:we|our|i)\s+(?:tested|compared|reviewed|observed|photographed|measured|bought)\b",
     re.IGNORECASE,
 )
+_FIRST_PERSON = re.compile(r"\b(?:I|we|my|our)\b", re.IGNORECASE)
 _EVIDENCE_PENDING = re.compile(
     r"\b(?:always|never|guaranteed|identical|authentic|proves?|all sellers?|industry standard)\b",
     re.IGNORECASE,
@@ -65,6 +69,7 @@ def analyze_article(request: ArticleResearchRequest) -> ArticleAnalysis:
     elif request.production_database_path is not None:
         article = _read_article_database(request)
     headings, paragraphs, images, links = _article_components(article)
+    existing_sections, existing_images = _existing_structure(article, request)
     title = _text(article.get("title"))
     h1 = next((heading for level, heading in headings if level == 1), title)
     heading_text = [heading for _, heading in headings]
@@ -120,6 +125,8 @@ def analyze_article(request: ArticleResearchRequest) -> ArticleAnalysis:
         unsupported_claims=unsupported,
         missing_user_questions=missing_questions,
         evidence_gaps_by_lane=gaps,
+        existing_sections=existing_sections,
+        existing_images=existing_images,
     )
 
 
@@ -130,6 +137,9 @@ def build_research_plan(request: ResearchRequest) -> ResearchPlan:
         analyze_article(hashed_request)
         if isinstance(hashed_request, ArticleResearchRequest)
         else None
+    )
+    reusable_topic_ids = _reusable_topic_ids(
+        hashed_request.research_database_path, hashed_request.topic_ids
     )
     primary_prompts: list[Prompt] = []
     for value in hashed_request.research_questions:
@@ -226,7 +236,7 @@ def build_research_plan(request: ResearchRequest) -> ResearchPlan:
                 topic_ids=hashed_request.topic_ids,
             )
         ]
-    queries = _allocate_queries(hashed_request, questions)
+    queries = _allocate_queries(hashed_request, questions, reusable_topic_ids)
     base = {
         "research_id": hashed_request.research_id,
         "request_hash": hashed_request.request_hash,
@@ -244,6 +254,21 @@ def build_research_plan(request: ResearchRequest) -> ResearchPlan:
         "maximum_sources": hashed_request.maximum_sources,
         "maximum_image_candidates": hashed_request.maximum_image_candidates,
         "image_research_required": hashed_request.image_research_required,
+        "content_production_mode": hashed_request.content_production_mode,
+        "publication_intensity": hashed_request.publication_intensity,
+        "preserve_existing_images": hashed_request.preserve_existing_images,
+        "preserve_distinctive_content": hashed_request.preserve_distinctive_content,
+        "owner_firsthand_evidence_required": hashed_request.owner_firsthand_evidence_required,
+        "maximum_new_sections": hashed_request.maximum_new_sections,
+        "owner_voice_evidence": hashed_request.owner_voice_evidence,
+        "distinctive_content_requirements": hashed_request.distinctive_content_requirements,
+        "existing_image_requirements": hashed_request.existing_image_requirements,
+        "minimum_existing_image_count": hashed_request.minimum_existing_image_count,
+        "asset_root": hashed_request.asset_root,
+        "asset_manifest": hashed_request.asset_manifest,
+        "search_intents": hashed_request.search_intents,
+        "research_database_path": hashed_request.research_database_path,
+        "reusable_topic_ids": reusable_topic_ids,
     }
     draft = ResearchPlan.model_validate(base)
     plan_hash = content_hash(draft.model_dump(mode="json", exclude={"plan_hash"}))
@@ -251,8 +276,22 @@ def build_research_plan(request: ResearchRequest) -> ResearchPlan:
 
 
 def _allocate_queries(
-    request: ResearchRequest, questions: list[ResearchQuestion]
+    request: ResearchRequest,
+    questions: list[ResearchQuestion],
+    reusable_topic_ids: list[str],
 ) -> list[ResearchQuery]:
+    reusable = set(reusable_topic_ids)
+    eligible_questions = [
+        question
+        for question in questions
+        if not (
+            request.content_production_mode is ContentProductionMode.NEW_PAGE_BUILD
+            and question.topic_ids
+            and set(question.topic_ids) <= reusable
+        )
+    ]
+    if not eligible_questions:
+        return []
     policies = sorted(
         (
             policy
@@ -273,7 +312,7 @@ def _allocate_queries(
                 or len(output) >= request.maximum_search_calls
             ):
                 continue
-            question = questions[question_number % len(questions)]
+            question = eligible_questions[question_number % len(eligible_questions)]
             language = languages[question_number % len(languages)]
             base_terms = " ".join([*request.brand_scope, *request.model_scope]).strip()
             lane_term = _LANE_TERMS[policy.source_lane]
@@ -317,7 +356,7 @@ def _allocate_queries(
             added = True
         if not added:
             break
-    if len({item.source_lane for item in output}) < min(2, len(policies)):
+    if output and len({item.source_lane for item in output}) < min(2, len(policies)):
         raise ResearchArtifactError(
             "research plan did not retain configured source diversity"
         )
@@ -439,6 +478,139 @@ def _article_components(
         if _text(value) and _is_internal(_text(value) or ""):
             links.append(_text(value) or "")
     return headings, paragraphs, sorted(set(images)), sorted(set(links))
+
+
+def _existing_structure(
+    article: Mapping[str, Any], request: ArticleResearchRequest
+) -> tuple[list[ExistingArticleSection], list[ExistingArticleImage]]:
+    sections: list[ExistingArticleSection] = []
+    images: list[ExistingArticleImage] = []
+    requirements = [
+        item.casefold() for item in request.distinctive_content_requirements
+    ]
+    raw_section_values = article.get("sections", []) or []
+    raw_sections = (
+        list(raw_section_values) if isinstance(raw_section_values, list) else []
+    )
+    root_paragraphs = article.get("paragraphs", []) or []
+    root_images = article.get("images", []) or []
+    root_links = article.get("links", []) or []
+    article_title = _text(article.get("title"))
+    if root_paragraphs or root_images or root_links:
+        raw_sections.insert(
+            0,
+            {
+                "heading": {"level": 1, "text": article_title or "Article"},
+                "paragraphs": root_paragraphs,
+                "images": root_images,
+                "links": root_links,
+            },
+        )
+    elif not raw_sections and article_title:
+        raw_sections.append({"heading": {"level": 1, "text": article_title}})
+    for order, raw_section in enumerate(raw_sections):
+        if not isinstance(raw_section, dict):
+            continue
+        heading_value = raw_section.get("heading")
+        heading = heading_value if isinstance(heading_value, dict) else {}
+        heading_text = _text(heading.get("text")) or (
+            _text(article.get("title")) or f"Section {order + 1}"
+        )
+        level = int(heading.get("level", 2))
+        section_id = str(
+            raw_section.get("id")
+            or stable_id(
+                "existing_section",
+                {
+                    "research_id": request.research_id,
+                    "order": order,
+                    "heading": heading_text,
+                },
+            )
+        )
+        paragraph_values: list[str] = []
+        for paragraph in raw_section.get("paragraphs", []) or []:
+            value = paragraph.get("text") if isinstance(paragraph, dict) else paragraph
+            text = _text(value)
+            if text:
+                paragraph_values.append(text)
+        section_image_ids: list[str] = []
+        for image_order, raw_image in enumerate(raw_section.get("images", []) or []):
+            image_value = (
+                raw_image if isinstance(raw_image, dict) else {"source_url": raw_image}
+            )
+            source_url = _text(image_value.get("source_url"))
+            if not source_url:
+                continue
+            image_id = str(
+                image_value.get("id")
+                or stable_id(
+                    "existing_image",
+                    {"section_id": section_id, "order": image_order, "url": source_url},
+                )
+            )
+            section_image_ids.append(image_id)
+            images.append(
+                ExistingArticleImage(
+                    image_id=image_id,
+                    source_url=source_url,
+                    section_id=section_id,
+                    alt_text=_text(image_value.get("alt_text")),
+                    caption=_text(image_value.get("caption")),
+                    preserve=request.preserve_existing_images,
+                )
+            )
+        internal_links: list[str] = []
+        for raw_link in raw_section.get("links", []) or []:
+            link_value = (
+                raw_link.get("target_url") if isinstance(raw_link, dict) else raw_link
+            )
+            link_text = _text(link_value)
+            if link_text and _is_internal(link_text):
+                internal_links.append(link_text)
+        first_person = [text for text in paragraph_values if _FIRST_PERSON.search(text)]
+        distinctive = [
+            text
+            for text in paragraph_values
+            if text in first_person
+            or any(requirement in text.casefold() for requirement in requirements)
+        ]
+        sections.append(
+            ExistingArticleSection(
+                section_id=section_id,
+                order=order,
+                heading_level=level,
+                heading=heading_text,
+                paragraphs=paragraph_values,
+                image_ids=section_image_ids,
+                internal_links=sorted(set(internal_links)),
+                distinctive_passages=distinctive,
+                first_person_passages=first_person,
+            )
+        )
+    return sections, images
+
+
+def _reusable_topic_ids(database: Path | None, topic_ids: list[str]) -> list[str]:
+    if database is None or not database.is_file() or not topic_ids:
+        return []
+    resolved = database.resolve()
+    uri = f"file:{resolved.as_posix()}?mode=ro&immutable=1"
+    try:
+        with sqlite3.connect(uri, uri=True) as connection:
+            rows = connection.execute(
+                """SELECT tc.topic_id, COUNT(DISTINCT tc.claim_id),
+                          COUNT(DISTINCT ts.source_id)
+                   FROM topic_claims tc
+                   LEFT JOIN topic_sources ts ON ts.topic_id=tc.topic_id
+                   GROUP BY tc.topic_id"""
+            ).fetchall()
+    except sqlite3.Error:
+        return []
+    available = {
+        str(topic_id) for topic_id, claims, sources in rows if claims and sources
+    }
+    return sorted(set(topic_ids) & available)
 
 
 def _sentences(text: str) -> list[str]:

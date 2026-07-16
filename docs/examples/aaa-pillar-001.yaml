@@ -2,6 +2,15 @@
   "schema_version": "1.0",
   "research_id": "aaa-pillar-001",
   "mode": "article_research",
+  "content_production_mode": "legacy_reconstruction",
+  "publication_intensity": "highly_assertive_but_supportable",
+  "preserve_existing_images": true,
+  "preserve_distinctive_content": true,
+  "owner_firsthand_evidence_required": false,
+  "maximum_new_sections": 3,
+  "distinctive_content_requirements": ["sourcing journey", "Dior"],
+  "existing_image_requirements": ["all seven quality-comparison images"],
+  "minimum_existing_image_count": 7,
   "target_article_url": "https://reinaluxe.co/aaa-replica-bags-guide/",
   "article_version_id": "2576ade250e24945b20f45d040ccee48",
   "article_content_hash": "ea53177a626c77c5f4fd377eff70c58d630041d3502c4a8e5dfc4f7668d332c8",
@@ -60,6 +69,8 @@
     "pricing and markup methodology",
     "image-evidence limitations",
     "quality-evaluation techniques",
+    "chain weight and tactile descriptions",
+    "Chinese-language community agreement and disagreement",
     "terminology definitions from non-community sources"
   ],
   "research_questions": [
@@ -68,7 +79,9 @@
     "What can PSP or QC images reveal, and what remains unknowable?",
     "What evidence supports or limits handmade and named-tannery claims?",
     "What paired evidence supports bait-and-switch or batch-variation reports?",
-    "What do public sources report about direct, agent, and concierge-style sourcing workflows?"
+    "What do public sources report about direct, agent, and concierge-style sourcing workflows?",
+    "Where do Chinese-language and English-language communities agree or disagree?",
+    "What do repeated reports and visible evidence show about chain weight, drape, and tactile quality?"
   ],
   "production_database_path": "data/reinaluxe-recovery.db",
   "prior_research_paths": [

@@ -59,7 +59,8 @@ def discover_sources(
         raise ResearchArtifactError(
             f"plan provider {plan.provider!r} does not match {provider.provider_name!r}"
         )
-    provider.validate_configuration()
+    if plan.queries:
+        provider.validate_configuration()
     policy_by_lane = {item.source_lane: item for item in plan.source_lane_policies}
     lane_counts: Counter[SourceLane] = Counter()
     sources: list[SourceCandidate] = []

@@ -2,6 +2,8 @@
 
 Stage 009C-Core turns an existing repository article version or an owner-defined topic into a deterministic research plan, screened public-source register, atomic claims, evidence relationships, contradictions, visual candidates, reusable topic opportunities, and a compact owner review package. It does not draft or publish copy and has no WordPress write path.
 
+Stage 009C-Core-1A adds `research_only`, `legacy_reconstruction`, and `new_page_build` production modes. Planning remains offline: legacy mode preserves current structure and images, while new-page mode inspects reusable topics and prepared assets before declaring evidence gaps. See [content production modes](research-content-production-modes.md).
+
 ## Modes and stages
 
 The request contracts support `article_research`, `topic_build`, `topic_refresh`, `claim_verify`, `evidence_gap_fill`, and `visual_research`. Article mode reads normalized JSON, owner-provided HTML, or the existing SQLite article version in immutable read-only mode. It extracts title, H1, headings, claim-like statements, images, internal links, first-hand language, evidence-pending claims, missing questions, and lane-specific gaps. It never mechanically recommends shortening.

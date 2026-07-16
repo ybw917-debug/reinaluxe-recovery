@@ -32,6 +32,41 @@ class ResearchMode(StrEnum):
     VISUAL_RESEARCH = "visual_research"
 
 
+class ContentProductionMode(StrEnum):
+    RESEARCH_ONLY = "research_only"
+    LEGACY_RECONSTRUCTION = "legacy_reconstruction"
+    NEW_PAGE_BUILD = "new_page_build"
+
+
+class PublicationIntensity(StrEnum):
+    RESTRAINED = "restrained"
+    ASSERTIVE = "assertive"
+    HIGHLY_ASSERTIVE_BUT_SUPPORTABLE = "highly_assertive_but_supportable"
+
+
+class EvidenceOwnershipClass(StrEnum):
+    ORIGINAL_OWNER_EVIDENCE = "original_owner_evidence"
+    OWNER_ANALYSIS_OF_EXTERNAL_EVIDENCE = "owner_analysis_of_external_evidence"
+    OWNER_MARKET_SYNTHESIS = "owner_market_synthesis"
+    ATTRIBUTED_COMMUNITY_REPORT = "attributed_community_report"
+    ATTRIBUTED_SUPPLIER_CLAIM = "attributed_supplier_claim"
+    AUTHORIZED_CLIENT_CASE = "authorized_client_case"
+    DISCLOSED_COMPOSITE_CASE = "disclosed_composite_case"
+    INTERNAL_ONLY_SOURCE = "internal_only_source"
+    UNKNOWN_PERMISSION_SOURCE = "unknown_permission_source"
+
+
+class ContentChangeOperation(StrEnum):
+    KEEP = "KEEP"
+    ENRICH = "ENRICH"
+    REPLACE = "REPLACE"
+    MOVE = "MOVE"
+    SPLIT = "SPLIT"
+    DELETE = "DELETE"
+    ADD_BEFORE = "ADD_BEFORE"
+    ADD_AFTER = "ADD_AFTER"
+
+
 class SourceLane(StrEnum):
     COMMUNITY_REDDIT = "community_reddit"
     COMMUNITY_FORUMS = "community_forums"
@@ -101,6 +136,120 @@ class SourceLanePolicy(DomainModel):
     path_requirements: list[str] = Field(default_factory=list)
 
 
+class OwnerVoiceEvidence(DomainModel):
+    schema_version: ContractVersion = "1.0"
+    owner_reviewed: bool = False
+    owner_compared: bool = False
+    owner_analyzed: bool = False
+    owner_sourcing_conversation: bool = False
+    owner_physically_handled: bool = False
+    owner_received_physical_item: bool = False
+    owner_photographed: bool = False
+    owner_measured: bool = False
+    owner_used_long_term: bool = False
+    authorized_client_case: bool = False
+
+
+class FirstPersonEligibilityRecord(DomainModel):
+    schema_version: ContractVersion = "1.0"
+    eligibility_id: Identifier
+    research_id: Identifier
+    owner_reviewed: bool = False
+    owner_compared: bool = False
+    owner_analyzed: bool = False
+    owner_sourcing_conversation: bool = False
+    owner_physically_handled: bool = False
+    owner_received_physical_item: bool = False
+    owner_photographed: bool = False
+    owner_measured: bool = False
+    owner_used_long_term: bool = False
+    authorized_client_case: bool = False
+    permitted_first_person_phrases: list[str] = Field(default_factory=list)
+    prohibited_first_person_phrases: list[str] = Field(default_factory=list)
+    strongest_owner_voice_wording: NonEmptyText
+
+
+class ExistingArticleImage(DomainModel):
+    schema_version: ContractVersion = "1.0"
+    image_id: Identifier
+    source_url: NonEmptyText
+    section_id: Identifier
+    alt_text: str | None = None
+    caption: str | None = None
+    preserve: bool = True
+
+
+class ExistingArticleSection(DomainModel):
+    schema_version: ContractVersion = "1.0"
+    section_id: Identifier
+    order: int = Field(ge=0)
+    heading_level: int = Field(ge=1, le=6)
+    heading: NonEmptyText
+    paragraphs: list[str] = Field(default_factory=list)
+    image_ids: list[str] = Field(default_factory=list)
+    internal_links: list[str] = Field(default_factory=list)
+    distinctive_passages: list[str] = Field(default_factory=list)
+    first_person_passages: list[str] = Field(default_factory=list)
+
+
+class EditorialSynthesisRecord(DomainModel):
+    schema_version: ContractVersion = "1.0"
+    synthesis_id: Identifier
+    research_id: Identifier
+    claim_id: str | None = None
+    research_question_id: str | None = None
+    evidence_ownership_class: EvidenceOwnershipClass
+    source_observation: NonEmptyText
+    source_count: int = Field(ge=0)
+    source_lane_count: int = Field(ge=0)
+    visual_evidence_count: int = Field(ge=0)
+    contradiction_status: Literal["none", "present", "unresolved"]
+    editorial_inference: NonEmptyText
+    restrained_wording: NonEmptyText
+    assertive_wording: NonEmptyText
+    highly_assertive_but_supportable_wording: NonEmptyText
+    publication_intensity_allowed: PublicationIntensity
+    selected_publication_wording: NonEmptyText
+    concise_limitation: NonEmptyText
+    prohibited_unsupported_extension: NonEmptyText
+    proposed_section: str | None = None
+    narrative_value: NonEmptyText
+    reader_usefulness: NonEmptyText
+    conversion_value: NonEmptyText
+
+
+class ContentTransformationRecord(DomainModel):
+    schema_version: ContractVersion = "1.0"
+    transformation_id: Identifier
+    research_id: Identifier
+    existing_section_id: str | None = None
+    research_question_id: str | None = None
+    supporting_source_ids: list[str] = Field(default_factory=list)
+    relevant_image_ids: list[str] = Field(default_factory=list)
+    source_observation: NonEmptyText
+    editorial_inference: NonEmptyText
+    publication_wording: NonEmptyText
+    concise_limitation: NonEmptyText
+    operation: ContentChangeOperation
+    preserves_distinctive_content: bool = True
+    preserves_existing_images: bool = True
+
+
+class NewPageAssetRecord(DomainModel):
+    schema_version: ContractVersion = "1.0"
+    asset_id: Identifier
+    asset_type: Literal["image", "text", "measurement", "document", "other"]
+    local_path: Path | None = None
+    remote_url: HttpUrl | None = None
+    model: str | None = None
+    size: str | None = None
+    leather: str | None = None
+    hardware: str | None = None
+    description: str | None = None
+    publication_permission: NonEmptyText = "unknown_permission"
+    sha256: Sha256Digest | None = None
+
+
 class _ResearchRequest(DomainModel):
     schema_version: ContractVersion = "1.0"
     research_id: Identifier
@@ -131,7 +280,48 @@ class _ResearchRequest(DomainModel):
     production_database_path: Path | None = None
     approved_knowledge_paths: list[Path] = Field(default_factory=list)
     prior_research_paths: list[Path] = Field(default_factory=list)
+    content_production_mode: ContentProductionMode = ContentProductionMode.RESEARCH_ONLY
+    publication_intensity: PublicationIntensity = (
+        PublicationIntensity.HIGHLY_ASSERTIVE_BUT_SUPPORTABLE
+    )
+    preserve_existing_images: bool = False
+    preserve_distinctive_content: bool = False
+    owner_firsthand_evidence_required: bool = False
+    maximum_new_sections: int = Field(default=0, ge=0)
+    maximum_new_sections_explicitly_authorized: bool = False
+    owner_voice_evidence: OwnerVoiceEvidence = Field(default_factory=OwnerVoiceEvidence)
+    distinctive_content_requirements: list[str] = Field(default_factory=list)
+    existing_image_requirements: list[str] = Field(default_factory=list)
+    minimum_existing_image_count: int = Field(default=0, ge=0)
+    asset_root: Path | None = None
+    asset_manifest: Path | None = None
+    search_intents: list[str] = Field(default_factory=list)
+    research_database_path: Path | None = None
     request_hash: Sha256Digest | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def apply_production_defaults(cls, value: object) -> object:
+        if not isinstance(value, dict):
+            return value
+        data = dict(value)
+        mode = data.get("content_production_mode", ContentProductionMode.RESEARCH_ONLY)
+        if (
+            mode == ContentProductionMode.LEGACY_RECONSTRUCTION
+            or mode == "legacy_reconstruction"
+        ):
+            data.setdefault("preserve_existing_images", True)
+            data.setdefault("preserve_distinctive_content", True)
+            data.setdefault("owner_firsthand_evidence_required", False)
+            data.setdefault("maximum_new_sections", 3)
+            data.setdefault(
+                "publication_intensity",
+                PublicationIntensity.HIGHLY_ASSERTIVE_BUT_SUPPORTABLE,
+            )
+        elif mode == ContentProductionMode.NEW_PAGE_BUILD or mode == "new_page_build":
+            data.setdefault("owner_firsthand_evidence_required", False)
+            data.setdefault("maximum_new_sections", 0)
+        return data
 
     @model_validator(mode="after")
     def validate_request(self) -> Self:
@@ -148,6 +338,14 @@ class _ResearchRequest(DomainModel):
         expected = self.computed_request_hash()
         if self.request_hash is not None and self.request_hash != expected:
             raise ValueError("request_hash does not match request content")
+        if (
+            self.content_production_mode is ContentProductionMode.LEGACY_RECONSTRUCTION
+            and self.maximum_new_sections > 3
+            and not self.maximum_new_sections_explicitly_authorized
+        ):
+            raise ValueError(
+                "legacy reconstruction allows at most three new sections unless explicitly authorized"
+            )
         return self
 
     def computed_request_hash(self) -> str:
@@ -167,6 +365,8 @@ class ArticleResearchRequest(_ResearchRequest):
 
     @model_validator(mode="after")
     def require_article_target(self) -> Self:
+        if self.content_production_mode is ContentProductionMode.NEW_PAGE_BUILD:
+            raise ValueError("new_page_build requires a topic research request")
         if (
             not self.target_article_url
             and not self.article_version_id
@@ -189,6 +389,10 @@ class TopicResearchRequest(_ResearchRequest):
 
     @model_validator(mode="after")
     def require_topic_target(self) -> Self:
+        if self.content_production_mode is ContentProductionMode.LEGACY_RECONSTRUCTION:
+            raise ValueError(
+                "legacy_reconstruction requires an article research request"
+            )
         if (
             not self.topic_ids
             and not self.research_questions
@@ -254,6 +458,8 @@ class ArticleAnalysis(DomainModel):
     unsupported_claims: list[str] = Field(default_factory=list)
     missing_user_questions: list[str] = Field(default_factory=list)
     evidence_gaps_by_lane: dict[str, list[str]] = Field(default_factory=dict)
+    existing_sections: list[ExistingArticleSection] = Field(default_factory=list)
+    existing_images: list[ExistingArticleImage] = Field(default_factory=list)
 
 
 class ResearchPlan(DomainModel):
@@ -264,14 +470,42 @@ class ResearchPlan(DomainModel):
     provider: NonEmptyText
     target_article_url: HttpUrl | None = None
     questions: list[ResearchQuestion] = Field(min_length=1)
-    queries: list[ResearchQuery] = Field(min_length=1)
+    queries: list[ResearchQuery] = Field(default_factory=list)
     source_lane_policies: list[SourceLanePolicy] = Field(min_length=1)
     article_analysis: ArticleAnalysis | None = None
     maximum_search_calls: int = Field(ge=1)
     maximum_sources: int = Field(ge=1)
     maximum_image_candidates: int = Field(ge=0)
     image_research_required: bool = False
+    content_production_mode: ContentProductionMode = ContentProductionMode.RESEARCH_ONLY
+    publication_intensity: PublicationIntensity = (
+        PublicationIntensity.HIGHLY_ASSERTIVE_BUT_SUPPORTABLE
+    )
+    preserve_existing_images: bool = False
+    preserve_distinctive_content: bool = False
+    owner_firsthand_evidence_required: bool = False
+    maximum_new_sections: int = Field(default=0, ge=0)
+    owner_voice_evidence: OwnerVoiceEvidence = Field(default_factory=OwnerVoiceEvidence)
+    distinctive_content_requirements: list[str] = Field(default_factory=list)
+    existing_image_requirements: list[str] = Field(default_factory=list)
+    minimum_existing_image_count: int = Field(default=0, ge=0)
+    asset_root: Path | None = None
+    asset_manifest: Path | None = None
+    search_intents: list[str] = Field(default_factory=list)
+    research_database_path: Path | None = None
+    reusable_topic_ids: list[str] = Field(default_factory=list)
     plan_hash: Sha256Digest | None = None
+
+    @model_validator(mode="after")
+    def require_queries_unless_reuse_is_sufficient(self) -> Self:
+        if not self.queries and not (
+            self.content_production_mode is ContentProductionMode.NEW_PAGE_BUILD
+            and self.reusable_topic_ids
+        ):
+            raise ValueError(
+                "research plan requires queries unless reusable new-page evidence is sufficient"
+            )
+        return self
 
 
 class SearchRun(DomainModel):

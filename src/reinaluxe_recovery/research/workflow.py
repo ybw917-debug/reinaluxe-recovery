@@ -26,6 +26,7 @@ from reinaluxe_recovery.research.database import (
     build_research_snapshot,
 )
 from reinaluxe_recovery.research.planning import build_research_plan
+from reinaluxe_recovery.research.production import export_content_production
 from reinaluxe_recovery.research.providers import (
     ResearchProviderRegistry,
     ResearchSearchProvider,
@@ -37,7 +38,9 @@ from reinaluxe_recovery.research.screening import discover_sources
 
 def research_plan(request_path: Path, output: Path) -> None:
     request = load_research_request(request_path)
-    write_plan(build_research_plan(request), output)
+    plan = build_research_plan(request)
+    write_plan(plan, output)
+    export_content_production(plan, output)
 
 
 def research_discover(
@@ -63,7 +66,9 @@ def research_analyze(
 ) -> None:
     run, plan = load_run(run_path)
     selected = analyzer or (ZhipuGLMSourceAnalyzer() if glm_assisted else None)
-    write_analysis(analyze_search_run(run, plan, selected), output)
+    bundle = analyze_search_run(run, plan, selected)
+    write_analysis(bundle, output)
+    export_content_production(plan, output, bundle=bundle)
 
 
 def research_build_snapshot(
@@ -80,6 +85,7 @@ def research_build_snapshot(
         production_database_path=production_database_path,
     )
     write_analysis(bundle, output)
+    export_content_production(bundle.plan, output, bundle=bundle)
     write_snapshot(snapshot, output)
     return snapshot
 

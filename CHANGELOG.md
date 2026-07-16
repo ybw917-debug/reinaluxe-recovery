@@ -1,5 +1,13 @@
 # Changelog
 
+## Stage 009C-Core-1A - 2026-07-16
+
+- Added research-only, legacy-reconstruction, and new-page-build production modes.
+- Added evidence-owned assertive synthesis, first-person eligibility, prohibited-overclaim, and publication-wording registers.
+- Added ENRICH-first reconstruction packages that preserve existing sections, distinctive passages, images, and internal links without requiring new owner-handled evidence.
+- Added reusable-topic and local asset-manifest inspection for future page blueprints and evidence/image gaps.
+- Added planning-only AAA reconstruction output and a generic Hermès model new-page template; no live search or publication was performed.
+
 ## Stage 009C-Core - 2026-07-16
 
 - Added generic article/topic research contracts and configurable public-source lanes.

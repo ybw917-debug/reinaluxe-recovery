@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "research_id": "hermes-model-new-page-template",
+  "mode": "topic_build",
+  "content_production_mode": "new_page_build",
+  "publication_intensity": "highly_assertive_but_supportable",
+  "topic_ids": ["hermes-<MODEL>-<SIZE>-editorial-guide"],
+  "owner_objective": "Prepare an evidence-led future model page without assuming a recommendation or factory conclusion.",
+  "target_audience": "Readers comparing a specific Hermès model, size, leather, and hardware configuration.",
+  "source_lane_priorities": [
+    {"source_lane": "community_reddit", "priority": 1, "query_quota": 3, "source_quota": 8},
+    {"source_lane": "community_forums", "priority": 2, "query_quota": 3, "source_quota": 8},
+    {"source_lane": "primary_official", "priority": 3, "query_quota": 2, "source_quota": 6},
+    {"source_lane": "expert_editorial", "priority": 4, "query_quota": 2, "source_quota": 6},
+    {"source_lane": "visual_image", "priority": 5, "query_quota": 2, "source_quota": 8},
+    {"source_lane": "commercial_observation", "priority": 6, "query_quota": 1, "source_quota": 4}
+  ],
+  "language": "en",
+  "alternate_languages": ["zh-CN"],
+  "region": "global",
+  "brand_scope": ["Hermès"],
+  "model_scope": ["<MODEL>", "<SIZE>", "<LEATHER>", "<HARDWARE>"],
+  "image_research_required": true,
+  "maximum_search_calls": 13,
+  "maximum_sources": 35,
+  "maximum_image_candidates": 20,
+  "output_directory": "data/research/new-pages/hermes-model-template",
+  "provider": "zhipu",
+  "asset_root": "data/research/assets/hermes/<MODEL>-<SIZE>",
+  "asset_manifest": "data/research/assets/hermes/<MODEL>-<SIZE>/manifest.json",
+  "research_database_path": "data/research/runtime/research.sqlite",
+  "search_intents": [
+    "<MODEL> <SIZE> review",
+    "<MODEL> <LEATHER> comparison",
+    "<MODEL> <HARDWARE> visual details",
+    "<MODEL> buyer quality evaluation"
+  ],
+  "query_families": [
+    "model and size terminology",
+    "leather and hardware observations",
+    "same-configuration visual comparisons",
+    "buyer questions and ownership tradeoffs",
+    "image evidence requirements"
+  ],
+  "research_questions": [
+    "Which reusable topic evidence already covers this model and configuration?",
+    "Which prepared assets can support the page architecture?",
+    "Which textual and visual evidence gaps require targeted research?"
+  ],
+  "excluded_subjects": [
+    "unsupported factory rankings",
+    "universal quality guarantees",
+    "appearance-only authenticity conclusions"
+  ]
+}

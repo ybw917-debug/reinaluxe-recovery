@@ -195,6 +195,19 @@ uv run reinaluxe-recovery research-preview-queries `
 
 Builds a deterministic, lane-aware paid-request preview. It makes zero provider and GLM calls. Both structural and retrieval quality must pass before discovery can send a paid request. Retrieval checks include research-question/lane consistency, grouped topic concepts, excessive exact-phrase quoting, acronym disambiguation, and natural-language query quality; entity-contamination controls remain unchanged.
 
+## `research-compare-providers`
+
+```powershell
+uv run reinaluxe-recovery research-compare-providers `
+  --request docs/examples/aaa-pillar-001.yaml `
+  --query-families terminology,psp_qc,handmade_provenance `
+  --brave-run data/research/smoke/aaa-pillar-001-brave-v1 `
+  --zhipu-run data/research/smoke/aaa-pillar-001-zhipu-after-df18bbb `
+  --output data/research/smoke/aaa-pillar-001-brave-v1
+```
+
+Reclassifies existing Brave and Zhipu result registers with the same current deterministic rules. It makes no search, GLM, result-page, Reddit, or image request and writes the provider comparison report and CSV register.
+
 ## `audit-articles`
 
 ```powershell

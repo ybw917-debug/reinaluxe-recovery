@@ -87,6 +87,9 @@ from reinaluxe_recovery.research.workflow import (
     research_build_snapshot as run_research_build_snapshot,
 )
 from reinaluxe_recovery.research.workflow import (
+    research_compare_providers as run_research_compare_providers,
+)
+from reinaluxe_recovery.research.workflow import (
     research_discover as run_research_discover,
 )
 from reinaluxe_recovery.research.workflow import (
@@ -1120,6 +1123,33 @@ def research_preview_queries_command(
         raise typer.Exit(code=EXIT_RESEARCH_ERROR) from error
     status = "PASS" if validation["valid"] else "FAIL"
     console.print(f"Research query preview: {status} ({output})")
+
+
+@app.command("research-compare-providers")
+def research_compare_providers_command(
+    request: Annotated[
+        Path,
+        typer.Option("--request", exists=True, file_okay=True, dir_okay=False),
+    ],
+    query_families: Annotated[str, typer.Option("--query-families")],
+    brave_run: Annotated[
+        Path, typer.Option("--brave-run", exists=True, file_okay=False)
+    ],
+    zhipu_run: Annotated[
+        Path, typer.Option("--zhipu-run", exists=True, file_okay=False)
+    ],
+    output: Annotated[Path, typer.Option("--output", file_okay=False)],
+) -> None:
+    """Compare Brave results with an offline reclassification of Zhipu v2."""
+    families = [item.strip() for item in query_families.split(",") if item.strip()]
+    try:
+        rows = run_research_compare_providers(
+            request, families, brave_run, zhipu_run, output
+        )
+    except (ResearchError, ValidationError, OSError) as error:
+        error_console.print(f"Provider comparison error: {error}", style="red")
+        raise typer.Exit(code=EXIT_RESEARCH_ERROR) from error
+    console.print(f"Provider comparison: {len(rows)} providers ({output})")
 
 
 @app.command("research-build-asset-manifest")

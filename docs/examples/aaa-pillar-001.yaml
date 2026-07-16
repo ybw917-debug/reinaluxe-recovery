@@ -58,7 +58,7 @@
   "maximum_sources": 60,
   "maximum_image_candidates": 25,
   "output_directory": "data/research/reviews/aaa-pillar-001",
-  "provider": "zhipu",
+  "provider": "lane-routed",
   "query_families": [
     "terminology",
     "same-model tiers",

@@ -43,6 +43,7 @@ from reinaluxe_recovery.research.planning import build_research_plan
 from reinaluxe_recovery.research.production import build_editorial_synthesis
 from reinaluxe_recovery.research.providers import (
     ResearchSearchProvider,
+    RoutedProviderResponse,
     ZhipuGLMSourceAnalyzer,
     default_provider_registry,
 )
@@ -60,8 +61,8 @@ from reinaluxe_recovery.research.screening import (
 )
 
 SMOKE_MAX_CALLS = 3
-SMOKE_MAX_RESULTS_PER_CALL = 15
-SMOKE_MAX_RAW_RESULTS = 45
+SMOKE_MAX_RESULTS_PER_CALL = 10
+SMOKE_MAX_RAW_RESULTS = 30
 SMOKE_MAX_RETAINED_SOURCES = 20
 
 SMOKE_OUTPUTS = (
@@ -139,6 +140,12 @@ def research_smoke(
     structured_valid = not glm_assisted
     if result["configuration_failed"]:
         recommendation = SmokeRecommendation.CONFIGURATION_FAILED
+    elif len(result["run"].source_candidates) < 3:
+        recommendation = SmokeRecommendation.PROVIDER_COVERAGE_INSUFFICIENT
+        analysis_error = (
+            "fewer than three sources passed deterministic relevance and source-lane "
+            "validation; cross-source synthesis was not run"
+        )
     else:
         try:
             bundle = analyze_search_run(result["run"], plan, selected_analyzer)
@@ -164,7 +171,7 @@ def research_smoke(
 
 
 def _build_smoke_plan(plan: ResearchPlan, requested: list[str]) -> ResearchPlan:
-    queries = build_preview_queries(plan, requested, maximum_results=15)
+    queries = build_preview_queries(plan, requested, maximum_results=10)
     draft = plan.model_copy(
         update={
             "questions": research_questions_for_queries(queries),
@@ -292,7 +299,7 @@ def _execute_discovery(
                         "retry_count": 0,
                     }
                 )
-                break
+                continue
             returned_raw += raw_count
             remaining = SMOKE_MAX_RAW_RESULTS - processed_raw
             selected_results = normalized[: min(requested_limit, remaining)]
@@ -301,6 +308,7 @@ def _execute_discovery(
                 {
                     "call_index": call_index,
                     **_provider_call_query_fields(query),
+                    "provider": _response_provider_name(provider, response),
                     "requested_result_limit": requested_limit,
                     "returned_raw_results": raw_count,
                     "processed_results": len(selected_results),
@@ -684,6 +692,7 @@ def _write_smoke_csvs(
         output / "provider-call-register.csv",
         [
             "call_index",
+            "provider",
             "query_id",
             "query_family",
             "exact_search_query",
@@ -897,12 +906,24 @@ def _provider_call_query_fields(query: ResearchQuery) -> dict[str, Any]:
 
 
 def _raw_provider_count(response: Any) -> int:
+    if isinstance(response, RoutedProviderResponse):
+        response = response.value
     items = response
     if isinstance(response, dict):
-        items = response.get("search_result", response.get("results", []))
+        web = response.get("web")
+        if isinstance(web, dict):
+            items = web.get("results", [])
+        else:
+            items = response.get("search_result", response.get("results", []))
         if isinstance(items, dict):
             items = items.get("items", [])
     return len(items) if isinstance(items, list) else 0
+
+
+def _response_provider_name(provider: ResearchSearchProvider, response: Any) -> str:
+    if isinstance(response, RoutedProviderResponse):
+        return response.provider.provider_name
+    return provider.provider_name
 
 
 def _owner_safe(value: Any) -> str:

@@ -1,5 +1,11 @@
 # Changelog
 
+## Stage 009C-Core-1C - 2026-07-16
+
+- Added bounded Brave Web Search and non-executing Brave Image Search contracts with deterministic lane routing while preserving Zhipu search and GLM analysis.
+- Added conjunctive family relevance, PSP gaming false-positive rejection, commercial-versus-expert classification, corrupted-content rejection, and a three-source synthesis floor.
+- Added offline Zhipu v2 reclassification and Brave-versus-Zhipu comparison artifacts.
+
 ## Stage 009C-Core-1B.1B - 2026-07-16
 
 - Rephrased the three AAA preview queries for natural Reddit, public-forum, and expert retrieval, including explicit PSP expansion and limited exact-phrase use.

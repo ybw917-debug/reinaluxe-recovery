@@ -102,7 +102,12 @@ def test_retrieval_failure_blocks_paid_provider_call() -> None:
         }
     )
     provider = NeverCalledProvider()
-    discover_sources(plan.model_copy(update={"queries": [query]}), provider)
+    discover_sources(
+        plan.model_copy(
+            update={"queries": [query], "provider": provider.provider_name}
+        ),
+        provider,
+    )
     assert provider.calls == 0
 
 

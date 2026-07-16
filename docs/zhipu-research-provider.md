@@ -1,6 +1,6 @@
 # Zhipu research provider
 
-`ZhipuWebSearchProvider` is the first registered `ResearchSearchProvider`. Downstream contracts depend only on the provider interface, so future providers can be registered without modifying plans, source records, claims, snapshots, or exports.
+`ZhipuWebSearchProvider` remains a registered `ResearchSearchProvider` and supplies the `primary_official` lane in the default [lane router](brave-research-provider.md). Downstream contracts still depend only on the provider interface.
 
 Set these values outside Git:
 

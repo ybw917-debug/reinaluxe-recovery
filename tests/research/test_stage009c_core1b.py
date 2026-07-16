@@ -129,7 +129,7 @@ class SmokeProvider(ResearchSearchProvider):
             elif query.source_lane is SourceLane.COMMUNITY_FORUMS:
                 url = f"https://forum{index}.example.test/thread/{call}-{index}"
             else:
-                url = f"https://reference{index}.example.gov/guide/{call}-{index}"
+                url = f"https://editorial{index}.example.test/guide/{call}-{index}"
             output.append(
                 {
                     "provider_result_id": f"provider-{call}-{index}",
@@ -253,7 +253,7 @@ def test_smoke_limits_traceability_visuals_and_assertive_outputs(
     assert all(row["image_source_category"] != "owner_original" for row in images)
 
 
-def test_smoke_caps_each_call_at_fifteen_results(tmp_path: Path) -> None:
+def test_smoke_caps_each_call_at_ten_results(tmp_path: Path) -> None:
     provider = SmokeProvider(results_per_call=30)
     output = tmp_path / "limited"
     validation = research_smoke(
@@ -266,8 +266,8 @@ def test_smoke_caps_each_call_at_fifteen_results(tmp_path: Path) -> None:
         analyzer=StructuredAnalyzer(),
     )
     assert len(provider.calls) == 1
-    assert validation["raw_results_processed"] == 15
-    assert len(_read_csv(output / "query-results-register.csv")) == 15
+    assert validation["raw_results_processed"] == 10
+    assert len(_read_csv(output / "query-results-register.csv")) == 10
 
 
 def test_provider_failure_is_not_retried_and_exports_honest_result(
@@ -284,11 +284,11 @@ def test_provider_failure_is_not_retried_and_exports_honest_result(
         provider=provider,
         analyzer=StructuredAnalyzer(),
     )
-    assert len(provider.calls) == 1
+    assert len(provider.calls) == 3
     assert validation["recommendation"] == "provider_coverage_insufficient"
     calls = _read_csv(output / "provider-call-register.csv")
     assert calls[0]["status"] == "provider_failed"
-    assert calls[0]["retry_count"] == "0"
+    assert all(row["retry_count"] == "0" for row in calls)
 
 
 def test_reddit_post_normalization_and_rejection() -> None:
@@ -361,17 +361,15 @@ def test_strict_lane_signals_reclassify_official_brand_domains() -> None:
         {"url": "https://us.louisvuitton.com/eng-us/stories/example"},
         policies,
     )
-    assert reason is None and official is not None
-    assert official.source_lane is SourceLane.PRIMARY_OFFICIAL
+    assert official is None
+    assert reason == "source_lane_mismatch"
     classified, mismatch_reason = screen_source_candidate(
         query,
         {"url": "https://news.example.test/general-article"},
         policies,
     )
-    assert mismatch_reason is None and classified is not None
-    assert classified.requested_source_lane is SourceLane.COMMUNITY_FORUMS
-    assert classified.classified_source_lane is SourceLane.EXPERT_EDITORIAL
-    assert classified.classification_override_status == "classified_lane_overridden"
+    assert classified is None
+    assert mismatch_reason == "source_lane_mismatch"
 
 
 class DuplicateProvider(SmokeProvider):
@@ -382,25 +380,25 @@ class DuplicateProvider(SmokeProvider):
                 "provider_result_id": "one",
                 "url": "https://reddit.com/r/example/comments/abc111/a/?utm_source=x",
                 "title": "Same title",
-                "snippet": "Same AAA replica quality tier content",
+                "snippet": "Same AAA replica bag quality tier content",
             },
             {
                 "provider_result_id": "two",
                 "url": "https://reddit.com/r/example/comments/abc111/a/",
                 "title": "Same title",
-                "snippet": "Same AAA replica quality tier content",
+                "snippet": "Same AAA replica bag quality tier content",
             },
             {
                 "provider_result_id": "three",
                 "url": "https://reddit.com/r/example/comments/abc222/b/",
                 "title": "Same title",
-                "snippet": "Same AAA replica quality tier content",
+                "snippet": "Same AAA replica bag quality tier content",
             },
             {
                 "provider_result_id": "four",
                 "url": "https://reddit.com/r/example/comments/abc333/c/",
                 "title": "Different title",
-                "snippet": "Different AAA replica quality tier content",
+                "snippet": "Different AAA replica bag quality tier content",
             },
         ]
 

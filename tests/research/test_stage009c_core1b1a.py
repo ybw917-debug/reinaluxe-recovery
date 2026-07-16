@@ -201,11 +201,8 @@ def test_requested_and_classified_lanes_are_independent(tmp_path: Path) -> None:
         },
         _policies(),
     )
-    assert reason is None and candidate is not None
-    assert candidate.requested_source_lane is SourceLane.COMMUNITY_FORUMS
-    assert candidate.classified_source_lane is SourceLane.EXPERT_EDITORIAL
-    assert candidate.classification_rule == "broad_web_editorial_default"
-    assert candidate.classification_override_status == "classified_lane_overridden"
+    assert candidate is None
+    assert reason == "source_lane_mismatch"
 
 
 def test_reddit_query_requires_reddit_post_permalink(tmp_path: Path) -> None:
@@ -240,14 +237,20 @@ def test_official_homepage_and_unrelated_product_fail_relevance(
         },
         _policies(),
     )
-    assert homepage is None and homepage_reason == "topic_relevance_failed"
-    assert product is None and product_reason == "topic_relevance_failed"
+    assert homepage is None and homepage_reason == "source_lane_mismatch"
+    assert product is None and product_reason == "source_lane_mismatch"
 
 
 def test_regional_official_pages_share_organization_and_independent_cluster(
     tmp_path: Path,
 ) -> None:
-    query = _queries(tmp_path)[2]
+    query = _queries(tmp_path)[2].model_copy(
+        update={
+            "query_family": None,
+            "source_lane": SourceLane.PRIMARY_OFFICIAL,
+            "requested_source_lane": SourceLane.PRIMARY_OFFICIAL,
+        }
+    )
     candidates = []
     for host in (
         "de.louisvuitton.com",
@@ -282,7 +285,7 @@ def test_image_candidate_requires_real_locator_and_media_label_is_unresolved(
         query,
         {
             "url": "https://forum.example.test/thread/psp-qc-lighting",
-            "title": "Buyer forum PSP QC lighting comparison",
+            "title": "Replica handbag buyer forum PSP QC lighting comparison",
         },
         _policies(),
     )

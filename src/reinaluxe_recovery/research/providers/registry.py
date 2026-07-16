@@ -6,6 +6,11 @@ from collections.abc import Callable
 
 from reinaluxe_recovery.research.errors import ResearchConfigurationError
 from reinaluxe_recovery.research.providers.base import ResearchSearchProvider
+from reinaluxe_recovery.research.providers.brave import (
+    BraveImageSearchProvider,
+    BraveWebSearchProvider,
+)
+from reinaluxe_recovery.research.providers.routing import default_lane_routed_provider
 from reinaluxe_recovery.research.providers.zhipu import ZhipuWebSearchProvider
 
 ProviderFactory = Callable[[], ResearchSearchProvider]
@@ -34,4 +39,8 @@ class ResearchProviderRegistry:
 def default_provider_registry() -> ResearchProviderRegistry:
     registry = ResearchProviderRegistry()
     registry.register("zhipu", ZhipuWebSearchProvider)
+    registry.register("zhipu-web-search", ZhipuWebSearchProvider)
+    registry.register("brave-web-search", BraveWebSearchProvider)
+    registry.register("brave-image-search", BraveImageSearchProvider)
+    registry.register("lane-routed", default_lane_routed_provider)
     return registry

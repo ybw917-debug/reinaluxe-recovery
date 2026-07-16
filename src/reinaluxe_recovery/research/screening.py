@@ -69,6 +69,37 @@ _COMMERCIAL_HOST_MARKERS = (
     "etsy.",
     "taobao.",
 )
+_COMMERCIAL_TEXT_MARKERS = (
+    "add to cart",
+    "buy now",
+    "shop now",
+    "whatsapp",
+    "contact seller",
+    "price usd",
+    "replica bags for sale",
+    "product catalog",
+)
+_CORRUPTION_MARKERS = (
+    "\ufffd",
+    "ã€",
+    "â€",
+    "â€™",
+    "â€œ",
+    "â€�",
+    "ï»¿",
+    "馃",
+    "鈥",
+    "锟",
+    "銆",
+)
+_PSP_GAMING_MARKERS = (
+    "playstation portable",
+    "sony psp",
+    "psp game",
+    "psp gaming",
+    "handheld console",
+    "video game console",
+)
 _MULTIPART_PUBLIC_SUFFIXES = {
     "co.jp",
     "co.uk",
@@ -96,7 +127,9 @@ def classify_source_lane(
 
 
 def classify_source_lane_details(
-    url: str, brand_scope: list[str] | None = None
+    url: str,
+    brand_scope: list[str] | None = None,
+    content: str = "",
 ) -> SourceLaneClassification:
     """Classify a source from URL evidence independently of query intent."""
     host = (urlsplit(url).hostname or "").casefold().removeprefix("www.")
@@ -122,6 +155,13 @@ def classify_source_lane_details(
     if path.casefold().endswith((".jpg", ".jpeg", ".png", ".webp", ".gif")):
         return SourceLaneClassification(
             SourceLane.VISUAL_IMAGE, "direct_image_url_signal", 0.95
+        )
+    normalized_content = normalize_text(content).casefold()
+    if any(marker in normalized_content for marker in _COMMERCIAL_TEXT_MARKERS):
+        return SourceLaneClassification(
+            SourceLane.COMMERCIAL_OBSERVATION,
+            "commercial_content_signal",
+            0.88,
         )
     return SourceLaneClassification(
         SourceLane.EXPERT_EDITORIAL, "broad_web_editorial_default", 0.55
@@ -260,11 +300,22 @@ def screen_source_candidate(
         normalized = normalize_source_url(raw_url)
     except (ValueError, UnicodeError):
         return None, "invalid_url"
-    classification = classify_source_lane_details(normalized, query.brand_scope)
-    lane = classification.lane
-    policy = policies.get(lane)
     host = (urlsplit(normalized).hostname or "").casefold().removeprefix("www.")
     path = urlsplit(normalized).path
+    raw_title = _optional_text(raw.get("title"))
+    raw_snippet = _optional_text(raw.get("snippet"))
+    raw_content = " ".join(value for value in (raw_title, raw_snippet) if value)
+    if _is_corrupted_content(raw_content):
+        return None, "corrupted_content"
+    classification = classify_source_lane_details(
+        normalized, query.brand_scope, raw_content
+    )
+    if query.requested_source_lane is SourceLane.VISUAL_IMAGE and raw_images(raw):
+        classification = SourceLaneClassification(
+            SourceLane.VISUAL_IMAGE, "provider_image_metadata", 0.98
+        )
+    lane = classification.lane
+    policy = policies.get(lane)
     if lane is SourceLane.COMMUNITY_REDDIT and not _is_reddit_post(normalized):
         return None, "invalid_reddit_url"
     if (
@@ -273,10 +324,7 @@ def screen_source_candidate(
         and not _is_reddit_host(host)
     ):
         return None, "non_reddit_url_classified_as_reddit"
-    if (
-        query.requested_source_lane is SourceLane.COMMUNITY_REDDIT
-        and lane is not SourceLane.COMMUNITY_REDDIT
-    ):
+    if lane is not query.requested_source_lane:
         return None, "source_lane_mismatch"
     if policy is not None:
         if _domain_matches(host, policy.excluded_domains):
@@ -292,10 +340,9 @@ def screen_source_candidate(
     title = _safe_source_text(raw.get("title"), lane)
     snippet = _safe_source_text(raw.get("snippet"), lane)
     relevance_text = " ".join(value for value in (title, snippet, normalized) if value)
-    if canonical_query_family(query.query_family) and not topic_relevance_hits(
-        query.query_family, relevance_text
-    ):
-        return None, "topic_relevance_failed"
+    relevance_failure = _result_relevance_failure(query, relevance_text)
+    if relevance_failure:
+        return None, relevance_failure
     if lane is SourceLane.PRIMARY_OFFICIAL and _is_generic_official_page(normalized):
         return None, "topic_relevance_failed"
     images = []
@@ -598,6 +645,101 @@ def _safe_source_text(value: Any, lane: SourceLane) -> str | None:
     if text is None or lane is not SourceLane.COMMUNITY_REDDIT:
         return text
     return _REDDIT_USERNAME.sub("[redacted-user]", text)
+
+
+def _is_corrupted_content(value: str) -> bool:
+    """Reject obvious mojibake, control-heavy, or mechanically repeated content."""
+    if not value:
+        return False
+    folded = value.casefold()
+    if any(marker in folded for marker in _CORRUPTION_MARKERS):
+        return True
+    control_count = sum(
+        ord(character) < 32 and character not in "\t\n\r" for character in value
+    )
+    if control_count:
+        return True
+    tokens = re.findall(r"\w+", folded)
+    if len(tokens) >= 12:
+        repeated = Counter(tokens)
+        if repeated.most_common(1)[0][1] / len(tokens) > 0.55:
+            return True
+    return False
+
+
+def _result_relevance_failure(query: ResearchQuery, value: str) -> str | None:
+    """Apply conjunctive product-context and family-evidence screening."""
+    family = canonical_query_family(query.query_family)
+    if family is None:
+        return None
+    text = normalize_text(value).casefold()
+    if family == "psp_qc" and any(marker in text for marker in _PSP_GAMING_MARKERS):
+        return "psp_gaming_false_positive"
+    replica_context = any(
+        marker in text
+        for marker in (
+            "replica bag",
+            "replica handbag",
+            "replica purse",
+            "designer replica",
+            "fake bag",
+            "repladies",
+            "luxelife",
+        )
+    )
+    if family == "terminology":
+        family_hits = topic_relevance_hits(family, value)
+        passed = replica_context and bool(family_hits)
+    elif family == "psp_qc":
+        photo_context = any(
+            marker in text
+            for marker in (
+                "pre-shipment",
+                "pre shipment",
+                "qc photo",
+                "qc picture",
+                "psp photo",
+                "psp picture",
+                "seller photo",
+            )
+        ) or bool(re.search(r"(?<![a-z0-9])(?:psp|qc)(?![a-z0-9])", text))
+        comparison_context = any(
+            marker in text
+            for marker in (
+                "received item",
+                "lighting",
+                "batch variation",
+                "quality check",
+                "compare",
+                "comparison",
+                "inspection",
+            )
+        )
+        passed = replica_context and photo_context and comparison_context
+    else:
+        material_context = any(
+            marker in text
+            for marker in (
+                "handmade",
+                "original leather",
+                "tannery",
+                "supplier material",
+                "leather source",
+            )
+        )
+        verification_context = any(
+            marker in text
+            for marker in (
+                "verification",
+                "verify",
+                "provenance",
+                "authentication",
+                "evidence",
+                "claim",
+            )
+        )
+        passed = replica_context and material_context and verification_context
+    return None if passed else "topic_relevance_failed"
 
 
 def _source_cluster_key(host: str, metadata: Any) -> str:

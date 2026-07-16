@@ -21,6 +21,7 @@ from reinaluxe_recovery.research.artifacts import (
     write_snapshot,
 )
 from reinaluxe_recovery.research.assets import build_asset_manifest
+from reinaluxe_recovery.research.comparison import export_provider_comparison
 from reinaluxe_recovery.research.contracts import AssetManifestRecord, ResearchSnapshot
 from reinaluxe_recovery.research.database import (
     DEFAULT_RESEARCH_DATABASE,
@@ -196,6 +197,19 @@ def research_smoke(
         glm_assisted=glm_assisted,
         provider=provider,
         analyzer=analyzer,
+    )
+
+
+def research_compare_providers(
+    request_path: Path,
+    query_families: list[str],
+    brave_run: Path,
+    zhipu_run: Path,
+    output: Path,
+) -> list[dict[str, object]]:
+    """Compare a Brave run with an offline reclassification of Zhipu v2."""
+    return export_provider_comparison(
+        request_path, query_families, brave_run, zhipu_run, output
     )
 
 

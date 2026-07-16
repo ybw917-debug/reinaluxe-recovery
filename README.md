@@ -141,6 +141,8 @@ Stage 009C-Core-1B.1A adds an offline [query-integrity preview](docs/research-qu
 
 Stage 009C-Core-1B.1B refines the AAA defaults for natural retrieval and adds semantic query-quality validation for lane-consistent questions, limited quoting, grouped concepts, and acronym disambiguation.
 
+Stage 009C-Core-1C adds [Brave providers and lane routing](docs/brave-research-provider.md), conjunctive result screening, offline Zhipu v2 reclassification, and provider comparison outputs.
+
 - [Architecture](docs/architecture.md)
 - [Roadmap](docs/roadmap.md)
 - [Sprint 1](docs/sprint-1.md)

@@ -131,6 +131,8 @@ plus a batch manifest. It does not publish, import, or audit automatically. See
 
 ## Documentation
 
+Stage 009C-Core adds article-driven, multi-source research orchestration. Start with [the research workflow](docs/article-driven-research.md), review [source lanes](docs/research-source-lanes.md), and copy the [AAA pilot request template](docs/examples/aaa-pillar-001.yaml) into ignored runtime data before the first live run. Research outputs never modify WordPress or production article content.
+
 - [Architecture](docs/architecture.md)
 - [Roadmap](docs/roadmap.md)
 - [Sprint 1](docs/sprint-1.md)

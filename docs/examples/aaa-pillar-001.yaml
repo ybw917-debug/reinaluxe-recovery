@@ -1,0 +1,78 @@
+{
+  "schema_version": "1.0",
+  "research_id": "aaa-pillar-001",
+  "mode": "article_research",
+  "target_article_url": "https://reinaluxe.co/aaa-replica-bags-guide/",
+  "article_version_id": "2576ade250e24945b20f45d040ccee48",
+  "article_content_hash": "ea53177a626c77c5f4fd377eff70c58d630041d3502c4a8e5dfc4f7668d332c8",
+  "topic_ids": [
+    "replica-quality-terminology",
+    "same-model-tier-comparison",
+    "psp-qc-limitations",
+    "handmade-provenance-evidence",
+    "batch-and-bait-switch-risk",
+    "sourcing-and-concierge-workflow",
+    "pricing-and-markup-methodology",
+    "quality-evaluation-methodology"
+  ],
+  "owner_objective": "Find multi-source public evidence that tests the article's terminology, quality framework, provenance limits, pricing method, seller-claim reliability, sourcing workflow, and visual-evidence boundaries.",
+  "target_audience": "Readers evaluating replica-bag quality claims who need scoped, transparent evidence and limitations.",
+  "source_lane_priorities": [
+    {"source_lane": "community_reddit", "priority": 1, "query_quota": 8, "source_quota": 18},
+    {"source_lane": "community_forums", "priority": 2, "query_quota": 6, "source_quota": 14},
+    {"source_lane": "primary_official", "priority": 3, "query_quota": 5, "source_quota": 10},
+    {"source_lane": "expert_editorial", "priority": 4, "query_quota": 4, "source_quota": 10},
+    {"source_lane": "visual_image", "priority": 5, "query_quota": 5, "source_quota": 12},
+    {"source_lane": "commercial_observation", "priority": 6, "query_quota": 2, "source_quota": 6}
+  ],
+  "language": "en",
+  "alternate_languages": ["zh-CN"],
+  "region": "global",
+  "temporal_scope": {
+    "schema_version": "1.0",
+    "start_date": "2024-07-16",
+    "end_date": "2026-07-16",
+    "description": "Prefer the last 24 months; retain clearly labeled older technical context when needed."
+  },
+  "brand_scope": ["cross-brand", "Louis Vuitton"],
+  "model_scope": ["CarryAll Vibe MM"],
+  "excluded_subjects": [
+    "private supplier identities",
+    "private groups",
+    "contact lists",
+    "doxxing",
+    "unapproved image downloads",
+    "appearance-only authenticity conclusions"
+  ],
+  "image_research_required": true,
+  "maximum_search_calls": 30,
+  "maximum_sources": 60,
+  "maximum_image_candidates": 25,
+  "output_directory": "data/research/reviews/aaa-pillar-001",
+  "provider": "zhipu",
+  "query_families": [
+    "terminology",
+    "same-model tiers",
+    "PSP and QC limits",
+    "handmade and tannery provenance",
+    "bait-and-switch and batch variation",
+    "sourcing and concierge workflow",
+    "pricing and markup methodology",
+    "image-evidence limitations",
+    "quality-evaluation techniques",
+    "terminology definitions from non-community sources"
+  ],
+  "research_questions": [
+    "Do AAA, 1:1, mirror quality, and superfake have consistent meanings across source types?",
+    "Which same-model visible comparisons are sufficiently identified and what can they not establish?",
+    "What can PSP or QC images reveal, and what remains unknowable?",
+    "What evidence supports or limits handmade and named-tannery claims?",
+    "What paired evidence supports bait-and-switch or batch-variation reports?",
+    "What do public sources report about direct, agent, and concierge-style sourcing workflows?"
+  ],
+  "production_database_path": "data/reinaluxe-recovery.db",
+  "prior_research_paths": [
+    "data/content-operations/pillar-repair/pr-01b-aaa-enrichment/community-query-plan.csv",
+    "data/content-operations/pillar-repair/pr-01b-aaa-enrichment/community-research-brief.md"
+  ]
+}

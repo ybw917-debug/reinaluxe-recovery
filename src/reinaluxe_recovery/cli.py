@@ -76,6 +76,28 @@ from reinaluxe_recovery.persistence import (
     create_session_factory,
     initialize_database,
 )
+from reinaluxe_recovery.research.errors import ResearchError
+from reinaluxe_recovery.research.workflow import (
+    research_analyze as run_research_analyze,
+)
+from reinaluxe_recovery.research.workflow import (
+    research_build_snapshot as run_research_build_snapshot,
+)
+from reinaluxe_recovery.research.workflow import (
+    research_discover as run_research_discover,
+)
+from reinaluxe_recovery.research.workflow import (
+    research_export_review as run_research_export_review,
+)
+from reinaluxe_recovery.research.workflow import (
+    research_image_review as run_research_image_review,
+)
+from reinaluxe_recovery.research.workflow import (
+    research_plan as run_research_plan,
+)
+from reinaluxe_recovery.research.workflow import (
+    research_refresh as run_research_refresh,
+)
 
 app = typer.Typer(
     name="reinaluxe-recovery",
@@ -93,6 +115,7 @@ EXIT_PERSISTENCE_ERROR = 4
 EXIT_QUERY_ERROR = 5
 EXIT_COMMUNITY_ERROR = 6
 EXIT_CONTENT_OPS_ERROR = 7
+EXIT_RESEARCH_ERROR = 8
 
 
 @app.command()
@@ -875,6 +898,156 @@ def content_build_change_manifest(
         f"opportunities={len(manifest.approved_opportunity_ids)}"
     )
     console.print(f"Output: {output}")
+
+
+@app.command("research-plan")
+def research_plan_command(
+    request: Annotated[
+        Path,
+        typer.Option("--request", exists=True, file_okay=True, dir_okay=False),
+    ],
+    output: Annotated[Path, typer.Option("--output", file_okay=False)],
+) -> None:
+    """Understand an article/topic and create a bounded multi-source plan."""
+    try:
+        run_research_plan(request, output)
+    except (ResearchError, ValidationError, OSError) as error:
+        error_console.print(f"Research planning error: {error}", style="red")
+        raise typer.Exit(code=EXIT_RESEARCH_ERROR) from error
+    console.print(f"Research plan: {output}")
+
+
+@app.command("research-discover")
+def research_discover_command(
+    plan: Annotated[
+        Path, typer.Option("--plan", exists=True, file_okay=True, dir_okay=True)
+    ],
+    output: Annotated[Path, typer.Option("--output", file_okay=False)],
+) -> None:
+    """Search configured public-source lanes with the plan-selected provider."""
+    try:
+        run_research_discover(plan, output)
+    except (ResearchError, ValidationError, OSError) as error:
+        error_console.print(f"Research discovery error: {error}", style="red")
+        raise typer.Exit(code=EXIT_RESEARCH_ERROR) from error
+    console.print(f"Research run: {output}")
+
+
+@app.command("research-analyze")
+def research_analyze_command(
+    run: Annotated[
+        Path, typer.Option("--run", exists=True, file_okay=True, dir_okay=True)
+    ],
+    output: Annotated[Path, typer.Option("--output", file_okay=False)],
+    glm_assisted: Annotated[
+        bool,
+        typer.Option(
+            "--glm-assisted/--deterministic-analysis",
+            help="Use configured GLM analysis after deterministic screening.",
+        ),
+    ] = False,
+) -> None:
+    """Extract atomic claims, evidence links, disagreement and opportunities."""
+    try:
+        run_research_analyze(run, output, glm_assisted=glm_assisted)
+    except (ResearchError, ValidationError, OSError) as error:
+        error_console.print(f"Research analysis error: {error}", style="red")
+        raise typer.Exit(code=EXIT_RESEARCH_ERROR) from error
+    console.print(f"Research analysis: {output}")
+
+
+@app.command("research-build-snapshot")
+def research_build_snapshot_command(
+    analysis: Annotated[
+        Path,
+        typer.Option("--analysis", exists=True, file_okay=True, dir_okay=True),
+    ],
+    output: Annotated[Path, typer.Option("--output", file_okay=False)],
+    research_database: Annotated[
+        Path,
+        typer.Option(
+            "--research-database", help="Separate runtime research SQLite path."
+        ),
+    ] = Path("data/research/runtime/research.sqlite"),
+) -> None:
+    """Persist a versioned snapshot in the separate research database."""
+    try:
+        snapshot = run_research_build_snapshot(
+            analysis, output, database_path=research_database
+        )
+    except (ResearchError, ValidationError, OSError) as error:
+        error_console.print(f"Research snapshot error: {error}", style="red")
+        raise typer.Exit(code=EXIT_RESEARCH_ERROR) from error
+    console.print(f"Research snapshot {snapshot.snapshot_id}: {output}")
+
+
+@app.command("research-export-review")
+def research_export_review_command(
+    analysis: Annotated[
+        Path,
+        typer.Option("--analysis", exists=True, file_okay=True, dir_okay=True),
+    ],
+    output: Annotated[Path, typer.Option("--output", file_okay=False)],
+    research_database: Annotated[
+        Path,
+        typer.Option(
+            "--research-database", help="Separate runtime research SQLite path."
+        ),
+    ] = Path("data/research/runtime/research.sqlite"),
+) -> None:
+    """Export the compact, blank-decision owner review package."""
+    try:
+        run_research_export_review(analysis, output, database_path=research_database)
+    except (ResearchError, ValidationError, OSError) as error:
+        error_console.print(f"Research review export error: {error}", style="red")
+        raise typer.Exit(code=EXIT_RESEARCH_ERROR) from error
+    console.print(f"Research review package: {output}")
+
+
+@app.command("research-refresh")
+def research_refresh_command(
+    request: Annotated[
+        Path,
+        typer.Option("--request", exists=True, file_okay=True, dir_okay=False),
+    ],
+    output: Annotated[Path, typer.Option("--output", file_okay=False)],
+    glm_assisted: Annotated[
+        bool,
+        typer.Option("--glm-assisted/--deterministic-analysis"),
+    ] = False,
+    research_database: Annotated[Path, typer.Option("--research-database")] = Path(
+        "data/research/runtime/research.sqlite"
+    ),
+) -> None:
+    """Run a bounded topic/article refresh and retain each stage artifact."""
+    try:
+        run_research_refresh(
+            request,
+            output,
+            glm_assisted=glm_assisted,
+            database_path=research_database,
+        )
+    except (ResearchError, ValidationError, OSError) as error:
+        error_console.print(f"Research refresh error: {error}", style="red")
+        raise typer.Exit(code=EXIT_RESEARCH_ERROR) from error
+    console.print(f"Research refresh package: {output}")
+
+
+@app.command("research-image-review")
+def research_image_review_command(
+    analysis: Annotated[
+        Path,
+        typer.Option("--analysis", exists=True, file_okay=True, dir_okay=True),
+    ],
+    output: Annotated[Path, typer.Option("--output", file_okay=False)],
+) -> None:
+    """Export source-linked image metadata for permission and owner review."""
+    try:
+        run_research_image_review(analysis, output)
+    except (ResearchError, ValidationError, OSError) as error:
+        error_console.print(f"Research image review error: {error}", style="red")
+        raise typer.Exit(code=EXIT_RESEARCH_ERROR) from error
+    console.print(f"Research image review: {output}")
 
 
 @app.command("acquire-site")

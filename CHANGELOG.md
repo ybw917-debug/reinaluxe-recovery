@@ -1,5 +1,13 @@
 # Changelog
 
+## Stage 009C-Core - 2026-07-16
+
+- Added generic article/topic research contracts and configurable public-source lanes.
+- Added Zhipu web search plus optional GLM source analysis behind provider interfaces.
+- Added deterministic source and image screening, atomic claims, corroboration, contradiction preservation, topic reuse, article opportunity mapping, and owner-review exports.
+- Added a separate ignored research SQLite database and the AAA pilot request template.
+- Added seven research CLI commands; no article drafting, WordPress mutation, or production-database write path was introduced.
+
 Notable project changes are recorded in this file.
 
 ## Unreleased
